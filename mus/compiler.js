@@ -1,34 +1,29 @@
 var compiler = {
-  endTime_fns: {},
   compile_fns: {}
 };
-compiler.extend = function (tag, endTime_fn, compile_fn) {
-  this.endTime_fns[tag] = endTime_fn;
+compiler.extend = function (tag, compile_fn) {
   this.compile_fns[tag] = compile_fn;
 };
-compiler.endTime = function (expr, time) {
-  time = time || 0;
-  if (expr.tag in this.endTime_fns) {
-    return this.endTime_fns[expr.tag].call(this, expr, time);
-  }
-}
 compiler.compile = function (expr, time) {
   time = time || 0;
-  if (expr.tag in this.compile_fns) {
-    return this.compile_fns[expr.tag].call(this, expr, time);
+  var result = {
+    note: [],
+    compile: function (expr, time) {
+      return compiler.compile_fns[expr.tag].call(this, expr, time);
+    }
   }
+  this.compile_fns[expr.tag].call(result, expr, time);
+  return result.note;
 };
 
 compiler.extend(
   'note',
   function (expr, time) {
+    this.note.push({tag: 'note',
+                    pitch: convertPitch(expr.pitch),
+                    start: time,
+                    dur: expr.dur});
     return time + expr.dur;
-  },
-  function (expr, time) {
-    return [{tag: 'note',
-             pitch: convertPitch(expr.pitch),
-             start: time,
-             dur: expr.dur}];
   }
 );
 
@@ -36,46 +31,33 @@ compiler.extend(
   'rest',
   function (expr, time) {
     return time + expr.dur;
-  },
-  function (expr, time) {
-    return [];
   }
 );
 
 compiler.extend(
   'seq',
   function (expr, time) {
-    return  this.endTime(expr.right, this.endTime(expr.left, time));
-  },
-  function (expr, time) {
-    return this.compile(expr.left, time).concat(
-            this.compile(expr.right, this.endTime(expr.left, time)));
+    time = this.compile(expr.left, time);
+    return this.compile(expr.right, time);
   }
 );
 
 compiler.extend(
   'par',
   function (expr, time) {
-    return Math.max(this.endTime(expr.right), this.endTime(expr.left));
-  },
-  function (expr, time) {
-    return this.compile(expr.left, time).concat(
-            this.compile(expr.right, time));
+    var time1 = this.compile(expr.left, time);
+    var time2 = this.compile(expr.right, time);
+    return Math.max(time1, time2);
   }
 );
 
 compiler.extend(
   'repeat',
   function (expr, time) {
-    return time + this.endTime(expr.section) * expr.count;
-  },
-  function (expr, time) {
-    var result = [];
     for (var i = expr.count; i > 0; --i) {
-      result = result.concat(this.compile(expr.section, time));
-      time = this.endTime(expr.section, time);
+      time = this.compile(expr.section, time);
     }
-    return result;
+    return time;
   }
 );
 
@@ -86,22 +68,22 @@ compiler.extend(
 compiler.extend(
   'cut',
   function (expr, time) {
-    return Math.min(time + expr.dur, this.endTime(expr.section, time));
-  },
-  function (expr, time) {
-    var stop_time = this.endTime(expr);
-    var result = this.compile(expr.section);
-    var new_result = [];
-    for (var i = 0, ilen = result.length; i < ilen; ++i) {
-      var note = result[i];
-      if (note.start < stop_time) {
-        if (note.start + note.dur > stop_time) {
-          note.dur = stop_time - note.start;
+    var _compile = this.compile,
+        cut_time = time + expr.dur;
+    this.compile = function (expr, time) {
+      if (time < cut_time) {
+        var result = _compile.call(this, expr, time);
+        var last_note = this.note[this.note.length-1];
+        // shorten last note if it goes over the cut_time
+        if (last_note.start + last_note.dur > cut_time) {
+          last_note.dur = cut_time - last_note.start;
         }
-        new_result.push(note);
+        return result;
       }
     }
-    return new_result;
+    var result = this.compile(expr.section, time);
+    this.compile = _compile;
+    return result;
   }
 );
 
@@ -113,32 +95,31 @@ compiler.extend(
 compiler.extend(
   'round',
   function (expr, time) {
-    return this.endTime(expr.right);
-  },
-  function (expr, time) {
-    return this.compile({
-      tag: 'par',
-      left: expr.right,
-      right: { tag: 'cut',
-        dur: this.endTime(expr.right),
-        section: {
-          tag: 'repeat',
-          count: Math.ceil(this.endTime(expr.right) / this.endTime(expr.left)),
-          section: expr.left
-        }
-      }
-    });
+    var cut_time = this.compile(expr.right, time);
+    while (time < cut_time) {
+      time = this.compile({tag: 'cut', dur: (cut_time - time), section: expr.left}, time);
+    }
+    return cut_time;
   }
 );
 
 var convertPitch = function (pitch) {
-  return (12 + 12 * parseInt(pitch.charAt(1)) +
-          ((pitch.charCodeAt() - 'a'.charCodeAt() - 2) % 12));
+  var letterPitches = { c: 12, d: 14, e: 18, f: 17, g: 19, a: 21, b: 23 };
+  return letterPitches[pitch[0]] +
+         12 * parseInt(pitch[1]);
 };
 
+var melody_mus = { tag: 'note', pitch: 'c4', dur: 1000 };
+var melody_mus = { tag: 'seq',
+                   left: { tag: 'note', pitch: 'c4', dur: 1000 },
+                   right: { tag: 'note', pitch: 'g4', dur: 1000 } };
+var melody_mus = { tag: 'par',
+                   left: { tag: 'note', pitch: 'c4', dur: 1000 },
+                   right: { tag: 'note', pitch: 'g4', dur: 1000 } };
 var melody_mus = 
 { tag: 'round',
-  left: { tag: 'note', pitch: 'a3', dur: 500},
+  dur: 1400,
+  left: { tag: 'note', pitch: 'a2', dur: 500},
   right:
   { tag: 'seq',
     left: 
@@ -147,8 +128,7 @@ var melody_mus =
        right: { tag: 'note', pitch: 'b4', dur: 250 } },
     right:
      { tag: 'seq',
-       left: {tag: 'repeat', count: 4, section: { tag: 'note', pitch: 'd4', dur: 500 } },
+       left: {tag: 'repeat', count: 4, section: { tag: 'note', pitch: 'd4', dur: 400 } },
        right: { tag: 'note', pitch: 'c4', dur: 500 } } } };
-
 console.log(melody_mus);
 console.log(compiler.compile(melody_mus));
