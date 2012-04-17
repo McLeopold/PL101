@@ -107,23 +107,50 @@ compiler.extend(
   }
 );
 
+/**
+ *  will repeat the left node as long as the right node is playing
+ *  useful for providing a background harmony for a melody
+ *  {tag: 'round', left: <MUS_EXPR>, right: <MUS_EXPR>}
+ */
+compiler.extend(
+  'round',
+  function (expr, time) {
+    return this.endTime(expr.right);
+  },
+  function (expr, time) {
+    return this.compile({
+      tag: 'par',
+      left: expr.right,
+      right: { tag: 'cut',
+        dur: this.endTime(expr.right),
+        section: {
+          tag: 'repeat',
+          count: Math.ceil(this.endTime(expr.right) / this.endTime(expr.left)),
+          section: expr.left
+        }
+      }
+    });
+  }
+);
+
 var convertPitch = function (pitch) {
   return (12 + 12 * parseInt(pitch.charAt(1)) +
           ((pitch.charCodeAt() - 'a'.charCodeAt() - 2) % 12));
 };
 
 var melody_mus = 
-  { tag: 'cut',
-    dur: 1750,
-    section: { tag: 'seq',
-      left: 
-       { tag: 'seq',
-         left: { tag: 'note', pitch: 'a4', dur: 250 },
-         right: { tag: 'note', pitch: 'b4', dur: 250 } },
-      right:
-       { tag: 'seq',
-         left: {tag: 'repeat', count: 4, section: { tag: 'note', pitch: 'd4', dur: 500 } },
-         right: { tag: 'note', pitch: 'c4', dur: 500 } } } };
+{ tag: 'round',
+  left: { tag: 'note', pitch: 'a3', dur: 500},
+  right:
+  { tag: 'seq',
+    left: 
+     { tag: 'seq',
+       left: { tag: 'note', pitch: 'a4', dur: 250 },
+       right: { tag: 'note', pitch: 'b4', dur: 250 } },
+    right:
+     { tag: 'seq',
+       left: {tag: 'repeat', count: 4, section: { tag: 'note', pitch: 'd4', dur: 500 } },
+       right: { tag: 'note', pitch: 'c4', dur: 500 } } } };
 
 console.log(melody_mus);
 console.log(compiler.compile(melody_mus));
