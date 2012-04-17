@@ -38,9 +38,7 @@ compiler.extend(
     return time + expr.dur;
   },
   function (expr, time) {
-    return [{tag: 'rest',
-             start: time,
-             dur: expr.dur}];
+    return [];
   }
 );
 
