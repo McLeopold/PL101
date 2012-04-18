@@ -61,6 +61,24 @@ compiler.extend(
   }
 );
 
+compiler.extend(
+  'reverse',
+  function (expr, time) {
+    var _compile = this.compile;
+    this.compile = function (expr, time) {
+      if (expr.left && expr.right) {
+        var temp = expr.right;
+        expr.right = expr.left;
+        expr.left = temp;
+      }
+      return _compile.call(this, expr, time);
+    }
+    var result = this.compile(expr.section, time);
+    this.compile = _compile;
+    return result;
+  }
+);
+
 /**
  *  will cut off the section if it extends past a specified duration
  *  {tag: 'cut', dur: 1000, section: <MUS_EXPR> }
@@ -90,14 +108,14 @@ compiler.extend(
 /**
  *  will repeat the left node as long as the right node is playing
  *  useful for providing a background harmony for a melody
- *  {tag: 'round', left: <MUS_EXPR>, right: <MUS_EXPR>}
+ *  {tag: 'round', round: <MUS_EXPR>, section: <MUS_EXPR>}
  */
 compiler.extend(
   'round',
   function (expr, time) {
-    var cut_time = this.compile(expr.right, time);
+    var cut_time = this.compile(expr.section, time);
     while (time < cut_time) {
-      time = this.compile({tag: 'cut', dur: (cut_time - time), section: expr.left}, time);
+      time = this.compile({tag: 'cut', dur: (cut_time - time), section: expr.round}, time);
     }
     return cut_time;
   }
@@ -117,18 +135,19 @@ var melody_mus = { tag: 'par',
                    left: { tag: 'note', pitch: 'c4', dur: 1000 },
                    right: { tag: 'note', pitch: 'g4', dur: 1000 } };
 var melody_mus = 
+{ tag: 'reverse',
+  section:
 { tag: 'round',
-  dur: 1400,
-  left: { tag: 'note', pitch: 'a2', dur: 500},
-  right:
+  round: { tag: 'note', pitch: 'a2', dur: 500},
+  section:
   { tag: 'seq',
-    left: 
+    left: { tag: 'reverse', section:
      { tag: 'seq',
        left: { tag: 'note', pitch: 'a4', dur: 250 },
-       right: { tag: 'note', pitch: 'b4', dur: 250 } },
+       right: { tag: 'note', pitch: 'b4', dur: 250 } } },
     right:
      { tag: 'seq',
        left: {tag: 'repeat', count: 4, section: { tag: 'note', pitch: 'd4', dur: 400 } },
-       right: { tag: 'note', pitch: 'c4', dur: 500 } } } };
+       right: { tag: 'note', pitch: 'c4', dur: 500 } } } } };
 console.log(melody_mus);
 console.log(compiler.compile(melody_mus));
