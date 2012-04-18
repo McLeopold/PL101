@@ -121,6 +121,29 @@ compiler.extend(
   }
 );
 
+/**
+ *  will store a structure to be reused later, perhaps multiple times
+ *  {tag: 'store', name: 'name', section: <MUS_EXPR>}
+ */
+compiler.storage = {};
+compiler.extend(
+  'store',
+  function (expr, time) {
+    compiler.storage[expr.name] = expr.section;
+  }
+);
+
+/**
+ *  will compile a stored structure at the current location
+ *  {tag: 'load', name: 'name'}
+ */
+compiler.extend(
+  'load',
+  function (expr, time) {
+    return this.compile(compiler.storage[expr.name]);
+  }
+);
+
 var convertPitch = function (pitch) {
   var letterPitches = { c: 12, d: 14, e: 18, f: 17, g: 19, a: 21, b: 23 };
   return letterPitches[pitch[0]] +
@@ -149,5 +172,18 @@ var melody_mus =
      { tag: 'seq',
        left: {tag: 'repeat', count: 4, section: { tag: 'note', pitch: 'd4', dur: 400 } },
        right: { tag: 'note', pitch: 'c4', dur: 500 } } } } };
+var melody_mus = 
+{ tag: 'seq',
+  left: {
+    tag: 'store',
+    name: 'one',
+    section: { tag: 'note', pitch: 'c4', dur: 500 }
+  },
+  right: {
+    tag: 'seq',
+    left: { tag: 'load', name: 'one' },
+    right: {tag: 'load', name: 'one' }
+  }
+}
 console.log(melody_mus);
 console.log(compiler.compile(melody_mus));
