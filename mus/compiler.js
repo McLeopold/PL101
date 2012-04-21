@@ -13,8 +13,14 @@
     var compile = function (expr, time, notes, compile) {
       return dispatch[expr.tag](expr, time, notes, compile);
     }
-    compiler.compile_fns[expr.tag](expr, time, notes, compile);
+    dispatch[expr.tag](expr, time, notes, compile);
     return notes;
+  };
+  compiler.compile_stack = function (expr, time) {
+    // TODO: write stack based compiler
+    time = time || 0;
+    var notes = []
+      , compile_fn = [];
   };
 
   compiler.extend(
@@ -62,23 +68,27 @@
     }
   );
 
+  /**
+   *  swaps left and right nodes if both exists before compiling, then fixes afterward
+   */
   compiler.extend(
     'reverse',
-    function (expr, time, notes, compile) {
-      return compile(expr.section, time, notes, function reverse_compile (expr, time, notes, compile) {
+    function (expr, time, notes, dispatcher) {
+      var reverse_compile = function (expr, time, notes, compile) {
         if (expr.left && expr.right) {
           var temp = expr.right;
           expr.right = expr.left;
           expr.left = temp;
         }
-        var result = compile(expr, time, notes, reverse_compile);
+        var result = dispatcher(expr, time, notes, compile);
         if (expr.left && expr.right) {
           var temp = expr.right;
           expr.right = expr.left;
           expr.left = temp;
         }
         return result;
-      });
+      };
+      return reverse_compile(expr.section, time, notes, reverse_compile);
     }
   );
 
@@ -88,11 +98,11 @@
    */
   compiler.extend(
     'cut',
-    function (expr, time, notes, compile) {
+    function (expr, time, notes, dispatcher) {
       var cut_time = time + expr.dur;
-      return compile(expr.section, time, notes, function cut_compile (expr, time, notes, compile) {
+      var cut_compile = function (expr, time, notes, compile) {
         if (time < cut_time) {
-          var result = compile(expr, time, notes, cut_compile);
+          var result = dispatcher(expr, time, notes, compile);
           var last_note = notes[notes.length-1];
           // shorten last note if it goes over the cut_time
           if (last_note.start + last_note.dur > cut_time) {
@@ -100,7 +110,21 @@
           }
           return result;
         }
-      });
+      };
+      return cut_compile(expr.section, time, notes, cut_compile);
+    }
+  );
+
+  /**
+   *  useless tag to give example of wrapping tags in a context
+   */
+  compiler.extend(
+    'context',
+    function (expr, time, notes, dispatcher) {
+      var context_compile = function (expr, time, notes, compile) {
+        return dispatcher(expr, time, notes, compile);
+      };
+      return context_compile(expr.section, time, notes, context_compile);
     }
   );
 
