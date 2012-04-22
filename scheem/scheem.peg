@@ -1,20 +1,26 @@
 start = expression
 
-expression = quote / atom / atomlist
+expression = WS? e:(quote / atom / atomlist) WS?
+  { return e; }
 
-atomlist = WS? '(' a:expression+ ')' WS?
-  { return a; }
+atomlist = OpenChar es:expression* CloseChar
+  { return es; }
 
-atom = WS? chars:AtomChar+ WS?
-  { return chars.join(""); }
+atom = chars:AtomChar+
+  { return chars.join(''); }
 
-quote = WS? QuoteChar e:expression WS?
+quote = QuoteChar e:expression
   { return ['quote', e]; }
 
 WS = (SpaceChar / EOLChar / Comment)+
-Comment = ";;" LineChar* EOLChar*
+Comment = CommentChar LineChar*
+
 AtomChar = [0-9a-zA-Z_?!+-=@#$%^&*/.]
-LineChar = [^\u000a\u000b\u000c\u000d\u0085\u2028\u2029]
+LineChar = (!(EOLChar) SourceChar)
 EOLChar = [\u000a\u000b\u000c\u000d\u0085\u2028\u2029]
 SpaceChar = [\u0009\u0020\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006]
 QuoteChar = "'"
+OpenChar = '('
+CloseChar = ')'
+CommentChar = ';;'
+SourceChar = [\u0000-\uffff]
