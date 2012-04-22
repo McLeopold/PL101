@@ -2,7 +2,7 @@ start = expression
 
 expression = quote / atom / atomlist
 
-atomlist = WS? '(' WS? a:expression+ ')' WS?
+atomlist = WS? '(' a:expression+ ')' WS?
   { return a; }
 
 atom = WS? chars:AtomChar+ WS?
