@@ -1,0 +1,33 @@
+/* Twinkle, Twinkle, Little Star */
+[250]
+4 ccggaag+
+  ffeeddc+
+|:ggffeed+:|
+  ccggaag+
+  ffeeddc+
+
+/* Yankee Doodle */
+[200]
+4 ccdeced+
+  ccdec+3b+
+4 ccdefedc
+3 bgab3c+c+
+
+  a.b\agab4c+
+3 g.a\gfe+g+
+  a.b\agab4c3a
+  g4c3b4dc+c+
+
+/* Eye of the Tiger */
+[200]
+
+4 (d&f&a)*2 |: ((d&f&a)(c&e&g) )*2/3  (d&f&a)*8/3   :|
+               ((d&f&a)(bb&d&f))*2/3  (bb&d&f)*14/3
+
+|:
+
+( (d&f&a)*2 |: ((d&f&a)(c&e&g) )*2/3  (d&f&a)*8/3   :|
+               ((d&f&a)(bb&d&f))*2/3  (bb&d&f)*14/3
+) & |: (2d&3d)\ :|32|
+
+:|1000000|
