@@ -1,6 +1,6 @@
 start = expression
 
-expression = WS? e:(quote / atom / atomlist) WS?
+expression = WS? e:(quote / integer / atom / atomlist) WS?
   { return e; }
 
 atomlist = OpenChar es:expression* CloseChar
@@ -14,6 +14,7 @@ quote = QuoteChar e:expression
 
 WS = (SpaceChar / EOLChar / Comment)+
 Comment = CommentChar LineChar*
+integer = d:[0-9]+ { return parseInt(d.join(''), 10); }
 
 AtomChar = [0-9a-zA-Z_?!+\-=@#$%^&*/.]
 LineChar = (!(EOLChar) SourceChar)

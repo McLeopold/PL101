@@ -1,0 +1,7 @@
+{
+  "name"        : "PL101",
+  "version"     : "1.0.0",
+  "dependencies": {
+                   "pegjs": "latest"
+  }
+}

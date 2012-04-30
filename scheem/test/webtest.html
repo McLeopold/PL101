@@ -13,8 +13,17 @@
   <script src="http://nathansuniversity.com/js/mocha.js">
   </script>
   <script>mocha.setup('tdd')</script>
-  <script src="../scheem.js"></script>
+  <script>
+    window.module = {};
+  </script>
+  <script src="../scheem-parser.js"></script>
+  <script>
+    window.scheem_parser = window.module.exports;
+    delete window.module;
+  </script>
+  <script src="../scheem-interpreter.js"></script>
   <script src="evalScheemTest.js"></script>
+  <script src="pegScheemTest.js"></script>
   <script>
     $(function(){
       mocha.run();

@@ -1,151 +1,191 @@
 if (typeof module !== 'undefined') {
-    var assert = require('chai').assert;
-    var evalScheem = require('../scheem').evalScheem;    
-} else {
-    var assert = chai.assert;
+  var chai = require('chai');
+  var evalScheem = require('../scheem-interpreter.js').evalScheem;
+  var evalScheemString = require('../scheem-interpreter.js').evalScheemString;
 }
 
-suite('quote', function() {
+var assert = chai.assert;
+var expect = chai.expect;
+
+suite('Scheem Errors', function () {
+  suite('set!', function () {
+    test('not defined', function () {
+      expect(function () {
+        evalScheem(['set!', 'x', 5], {});
+      }).to.throw();
+    });
+  });
+  suite('quote', function () {
+    test('nothing', function () {
+      expect(function () {
+        evalScheem(['quote'], {});
+      }).to.throw();
+    });
+    test('extra', function () {
+      expect(function () {
+        evalScheem(['quote', 1, 2], {});
+      }).to.throw();
+    });
+  });
+});
+
+suite('Scheem Run', function () {
+  suite('parse and eval', function () {
+    test('simple', function () {
+      assert.equal(
+        evalScheemString('(+ 1 2)', {}),
+        3
+      );
+    })
+  });
+});
+
+suite('Scheem Interpreter', function () {
+  suite('quote', function() {
     test('a number', function() {
-        assert.deepEqual(
-            evalScheem(['quote', 3], {}),
-            3
-        );
+      assert.deepEqual(
+        evalScheem(['quote', 3], {}),
+        3
+      );
     });
     test('an atom', function() {
-        assert.deepEqual(
-            evalScheem(['quote', 'dog'], {}),
-            'dog'
-        );
+      assert.deepEqual(
+        evalScheem(['quote', 'dog'], {}),
+        'dog'
+      );
     });
     test('a list', function() {
-        assert.deepEqual(
-            evalScheem(['quote', [1, 2, 3]], {}),
-            [1, 2, 3]
-        );
+      assert.deepEqual(
+        evalScheem(['quote', [1, 2, 3]], {}),
+        [1, 2, 3]
+      );
     });
-});
+  });
 
-suite('math', function() {
+  suite('math', function() {
     test('addition', function() {
-        assert.equal(
-            evalScheem(['+', 2, 3], {}),
-            5
-        );
+      assert.equal(
+        evalScheem(['+', 2, 3], {}),
+        5
+      );
     });
     test('subtraction', function () {
-        assert.equal(
-            evalScheem(['-', 3, 2], {}),
-            1
-        );
+      assert.equal(
+        evalScheem(['-', 3, 2], {}),
+        1
+      );
     });
     test('multiplication', function () {
-        assert.equal(
-            evalScheem(['*', 2, 3], {}),
-            6
-        );
+      assert.equal(
+        evalScheem(['*', 2, 3], {}),
+        6
+      );
     });
     test('division', function () {
-        assert.equal(
-            evalScheem(['/', 6, 2], {}),
-            3
-        );
+      assert.equal(
+        evalScheem(['/', 6, 2], {}),
+        3
+      );
     });
-});
+  });
 
-suite('environment', function () {
+  suite('environment', function () {
     test('define', function () {
-        var env = {};
-        evalScheem(['define', 'x', 5], env);
-        assert.deepEqual(
-            env,
-            {x: 5}
-        );
+      var env = {};
+      evalScheem(['define', 'x', 5], env);
+      assert.deepEqual(
+        env,
+        {x: 5}
+      );
     });
     test('set!', function () {
-        var env = {x: 5};
-        evalScheem(['set!', 'x', 7], env);
-        assert.deepEqual(
-            env,
-            {x: 7}
-        );
+      var env = {x: 5};
+      evalScheem(['set!', 'x', 7], env);
+      assert.deepEqual(
+        env,
+        {x: 7}
+      );
     });
     test('reference', function () {
-        var env = {x: 5};
-        assert.deepEqual(
-            evalScheem(['+', 'x', 0], env),
-            5
-        );
+      var env = {x: 5};
+      assert.deepEqual(
+        evalScheem(['+', 'x', 0], env),
+        5
+      );
     });
-});
+  });
 
-suite('imperative', function () {
+  suite('imperative', function () {
     test('begin', function () {
-        assert.deepEqual(
-            evalScheem(['begin',
-                        ['define', 'x', 5],
-                        ['+', 'x', 7]], {}),
-            12
-        );
+      assert.deepEqual(
+        evalScheem(['begin',
+                    ['define', 'x', 5],
+                    ['+', 'x', 7]], {}),
+        12
+      );
     });
-});
+  });
 
-suite('conditional', function () {
+  suite('conditional', function () {
     test('equal true', function () {
-        assert.equal(
-            evalScheem(['=', 5, 5], {}),
-            '#t'
-        )
+      assert.equal(
+        evalScheem(['=', 5, 5], {}),
+        '#t'
+      )
     });
     test('equal false', function () {
-        assert.equal(
-            evalScheem(['=', 2, 3], {}),
-            '#f'
-        );
+      assert.equal(
+        evalScheem(['=', 2, 3], {}),
+        '#f'
+      );
     });
     test('less than true', function () {
-        assert.equal(
-            evalScheem(['<', 5, 7], {}),
-            '#t'
-        )
+      assert.equal(
+        evalScheem(['<', 5, 7], {}),
+        '#t'
+      )
     });
     test('less than false', function () {
-        assert.equal(
-            evalScheem(['<', 3, 2], {}),
-            '#f'
-        );
+      assert.equal(
+        evalScheem(['<', 3, 2], {}),
+        '#f'
+      );
     });
-    test('if true', function () {
-        assert.equal(
-            evalScheem(['if', ['quote', '#t'], 1, 2], {}),
-            1
-        );
-    })
-    test('if false', function () {
-        assert.equal(
-            evalScheem(['if', ['quote', '#f'], 1, 2], {}),
-            2
-        );
-    })
-});
+  });
 
-suite('list processing', function () {
+  suite('branch', function () {
+    test('if true', function () {
+      assert.equal(
+        evalScheem(['if', ['quote', '#t'], 1, 2], {}),
+        1
+      );
+    });
+    test('if false', function () {
+      assert.equal(
+        evalScheem(['if', ['quote', '#f'], 1, 2], {}),
+        2
+      );
+    });
+  });
+
+  suite('list processing', function () {
     test('cons', function () {
-        assert.deepEqual(
-            evalScheem(['cons', 1, ['quote', [2, 3]]], {}),
-            [1, 2, 3]
-        );
+      assert.deepEqual(
+        evalScheem(['cons', 1, ['quote', [2, 3]]], {}),
+        [1, 2, 3]
+      );
     });
     test('car', function () {
-        assert.deepEqual(
-            evalScheem(['car', ['quote', [1, 2, 3]]], {}),
-            1
-        );
+      assert.deepEqual(
+        evalScheem(['car', ['quote', [1, 2, 3]]], {}),
+        1
+      );
     });
     test('cdr', function () {
-        assert.deepEqual(
-            evalScheem(['cdr', ['quote', [1, 2, 3]]], {}),
-            [2, 3]
-        );
+      assert.deepEqual(
+        evalScheem(['cdr', ['quote', [1, 2, 3]]], {}),
+        [2, 3]
+      );
     });
+  });
 });

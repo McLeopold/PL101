@@ -1,50 +1,78 @@
-var PEG = require('pegjs')
-  , fs = require('fs')
-  , should = require('should')
-  , parse
-;
+if (typeof module !== 'undefined') {
+  var chai = require('chai');
+  var parse = require('../scheem-parser.js').parse;
+} else {
+  var parse = scheem_parser.parse;
+}
 
-describe('Scheem', function(){
-  before(function(done){
-    fs.readFile('scheem.peg', 'ascii', function(err, data) {
-      parse = PEG.buildParser(data).parse;
-      done();
-    });
-  });
+var assert = chai.assert;
+var expect = chai.expect;
 
-  describe('simple', function(){
-    it('should return an atom for "a"', function(){
-      parse("a").should.eql('a');
+suite('Scheem Parser', function(){
+  suite('simple', function(){
+    test('atom', function(){
+      assert.equal(
+        parse("a"),
+        'a'
+      );
     });
-    it('should return a list for "(a b c)"', function(){
-      parse("(a b c)").should.eql(['a', 'b', 'c']);
+    test('should return a list for "(a b c)"', function(){
+      assert.deepEqual(
+        parse("(a b c)"),
+        ['a', 'b', 'c']
+      );
     });
-    it('should return a nested list for "(a (b))"', function(){
-      parse("(a(b))").should.eql(['a', ['b']]);
+    test('should return a nested list for "(a (b))"', function(){
+      assert.deepEqual(
+        parse("(a(b))"),
+        ['a', ['b']]
+      );
     })
   });
 
-  describe('whitespace', function(){
-    it('should parse " ( a  b ) " successfully', function(){
-      parse(" ( a  b ) ").should.be.ok;
+  suite('whitespace', function(){
+    test('should parse " ( a  b ) " successfully', function(){
+      assert.ok(
+        parse(" ( a  b ) ")
+      );
     });
-    it('should parse "( \\n a \\n b \\n ) " successfully', function(){
-      parse("( \n a \n b \n ) ").should.be.ok;
+    test('should parse "( \\n a \\n b \\n ) " successfully', function(){
+      assert.ok(
+        parse("( \n a \n b \n ) ")
+      );
     });
   });
 
-  describe('quote', function(){
-    it('should parse "\'x" as (quote x)', function(){
-      parse("'x").should.eql(['quote', 'x']);
+  suite('quote', function(){
+    test('should parse "\'x" as (quote x)', function(){
+      assert.deepEqual(
+        parse("'x"),
+        ['quote', 'x']
+      );
     });
-    it('should parse "\'(1 2) as (quote (1 2))', function(){
-      parse("'(1 2)").should.eql(['quote', ['1', '2']]);
+    test('should parse "\'(1 2) as (quote (1 2))', function(){
+      assert.deepEqual(
+        parse("'(1 2)"),
+        ['quote', [1, 2]]
+      );
     });
   });
   
-  describe('comment', function(){
-    it('should parse ";;a\\n(1 ;;b\\n;;c 3\\n2\\n;; )\\n)" as (1 2)', function(){
-      parse(";;a\n(1 ;;b\n;;c 3\n2\n;; )\n)").should.eql(['1', '2']);
+  suite('comment', function(){
+    test('should parse ";;a\\n(1 ;;b\\n;;c 3\\n2\\n;; )\\n)" as (1 2)', function(){
+      assert.deepEqual(
+        parse(";;a\n(1 ;;b\n;;c 3\n2\n;; )\n)"),
+        [1, 2]
+      );
+    });
+  });
+
+  suite('integer', function () {
+    test('parse', function () {
+      assert.deepEqual(
+        parse('(1)'),
+        [1]
+      );
     });
   });
 });
