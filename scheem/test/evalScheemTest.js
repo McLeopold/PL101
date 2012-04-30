@@ -1,11 +1,13 @@
 if (typeof module !== 'undefined') {
   var chai = require('chai');
-  var evalScheem = require('../scheem-interpreter.js').evalScheem;
-  var evalScheemString = require('../scheem-interpreter.js').evalScheemString;
+  var Scheem = {
+    interpreter: require('../scheem-interpreter.js')
+  };
 }
-
 var assert = chai.assert;
 var expect = chai.expect;
+var evalScheem = Scheem.interpreter.evalScheem;
+var evalScheemString = Scheem.interpreter.evalScheemString;
 
 suite('Scheem Errors', function () {
   suite('set!', function () {
