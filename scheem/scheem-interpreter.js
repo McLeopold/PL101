@@ -127,11 +127,14 @@ Scheem.interpreter = (function () {
           }
           return evalScheem(expr[2], env);
         };
+      case 'let':
+        for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
+          add_binding(env, expr[1][i][0], evalScheem(expr[1][i][1]));
+        }
+        return evalScheem(expr[2], env);
       case 'let-one':
-        return evalScheem(expr[3],
-                          {name: expr[1],
-                           value: expr[2],
-                           outer: env});
+        add_binding(env, expr[1], evalScheem(expr[2]));
+        return evalScheem(expr[3], env);
       default:
         var func = evalScheem(expr[0], env);
         var args = [];

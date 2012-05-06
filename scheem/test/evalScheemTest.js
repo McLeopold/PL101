@@ -148,6 +148,21 @@ suite('Scheem Interpreter', function () {
     });
   });
 
+  suite('binding', function () {
+    test('let-one', function () {
+      assert.deepEqual(
+        evalScheem(['let-one', 'x', 5, ['+', 'x', 3]], {}),
+        8
+      );
+    });
+    test('let', function () {
+      assert.deepEqual(
+        evalScheem(['let', [['x', 1], ['y', 2]], ['+', 'x', 'y']], {}),
+        3
+      );
+    })
+  });
+
   suite('quote', function() {
     test('a number', function() {
       assert.deepEqual(
