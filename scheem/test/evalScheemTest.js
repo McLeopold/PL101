@@ -37,10 +37,115 @@ suite('Scheem Run', function () {
         3
       );
     })
+    test('revenge of the nerds', function () {
+      assert.equal(
+        evalScheemString('(begin (define foo (lambda (n) (lambda (i) (+ n i)))) (define bar (foo 7)) (alert (bar 5)) (alert (bar 3)))', {}),
+        15
+      );
+    })
   });
 });
 
 suite('Scheem Interpreter', function () {
+  suite('alert', function () {
+    test('alert', function () {
+      assert.deepEqual(
+        evalScheem(['alert', 42], {}),
+        5
+      );
+    });
+  });
+
+  suite('function', function () {
+    test('((lambda x x) 5)', function () {
+      assert.deepEqual(
+        evalScheem([['lambda', 'x', 'x'], 5], {}),
+        5
+      );
+    });
+    test('((lambda x (+ x 1)) 5)', function () {
+      assert.deepEqual(
+        evalScheem([['lambda', 'x', ['+', 'x', 1]], 5], {}),
+        6
+      );
+    });
+    test('(((lambda x (lambda y (+ x y))) 5) 3)', function () {
+      assert.deepEqual(
+        evalScheem([[['lambda', 'x', ['lambda', 'y', ['+', 'x', 'y']]],
+                    5], 3], {}),
+        8
+      );
+    });
+    test('((lambda (x y) (+ x y)) 5 3)', function () {
+      assert.deepEqual(
+        evalScheem([['lambda', ['x', 'y'], ['+', 'x', 'y']], 5, 3], {}),
+        8
+      );
+    });
+    test('((lambda () 42))', function () {
+      assert.deepEqual(
+        evalScheem([['lambda', [], 42]], {}),
+        42
+      );
+    });
+
+    test('unknown function', function () {
+      expect(function () {
+        evalScheem(['unknown'], {});
+
+      }).to.throw();
+    });
+
+    test('assert-args-0 with 0 arg', function () {
+      assert.deepEqual(
+        evalScheem(['assert-args-0'], {}),
+        '#t'
+      );
+    });
+    test('assert-args-0 with 1 arg', function () {
+      assert.deepEqual(
+        evalScheem(['assert-args-0', 1]),
+        '#f'
+      );
+    });
+    test('assert-args-1 with 1 arg', function () {
+      assert.deepEqual(
+        evalScheem(['assert-args-1', 1], {}),
+        '#t'
+      );
+    });
+    test('assert-args-1 with 3 arg', function () {
+      assert.deepEqual(
+        evalScheem(['assert-args-1', 1, 2, 3]),
+        '#f'
+      );
+    });
+    test('assert-args-1 with 0 arg', function () {
+      assert.deepEqual(
+        evalScheem(['assert-args-1']),
+        '#f'
+      );
+    });
+    test('assert-args-2 with 2 arg', function () {
+      assert.deepEqual(
+        evalScheem(['assert-args-2', 1, 2], {}),
+        '#t'
+      );
+    });
+    test('assert-args-2 with 1 arg', function () {
+      assert.deepEqual(
+        evalScheem(['assert-args-2', 1]),
+        '#f'
+      );
+    });
+    test('assert-args-2 with 0 arg', function () {
+      assert.deepEqual(
+        evalScheem(['assert-args-2']),
+        '#f'
+      );
+    });
+  });
+
   suite('quote', function() {
     test('a number', function() {
       assert.deepEqual(
@@ -95,19 +200,27 @@ suite('Scheem Interpreter', function () {
       evalScheem(['define', 'x', 5], env);
       assert.deepEqual(
         env,
-        {x: 5}
+        {name: 'x',
+         value: 5,
+         outer: {}}
       );
     });
     test('set!', function () {
-      var env = {x: 5};
+      var env = {name: 'x',
+                 value: 5,
+                 outer: {}};
       evalScheem(['set!', 'x', 7], env);
       assert.deepEqual(
         env,
-        {x: 7}
+        {name: 'x',
+         value: 7,
+         outer: {}}
       );
     });
     test('reference', function () {
-      var env = {x: 5};
+      var env = {name: 'x',
+                 value: 5,
+                 outer: {}};
       assert.deepEqual(
         evalScheem(['+', 'x', 0], env),
         5
