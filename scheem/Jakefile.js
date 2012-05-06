@@ -1,10 +1,21 @@
-var PEG = require('pegjs');
-
-desc('Build the scheem PEG parser.');
-task('build', [], function () {
-  fs.readFile('scheem.peg', 'ascii', function(err, data) {
-    parse = PEG.buildParser(data).parse;
-  });
-});
+var PEG = require('pegjs')
+  , fs = require('fs')
+  , input_file = 'scheem.peg'
+  , output_file = 'scheem-parser.js'
+;
 
 task('default', ['build']);
+
+task('build', [], function () {
+  fs.readFile(input_file, function (err, data) {
+    if (err) throw err;
+    fs.writeFile(output_file,
+               'var Scheem = Scheem || {};\nScheem.parser = '
+               + PEG.buildParser(String(data), {}).toSource()
+               + ';\nif (typeof module !== "undefined") { module.exports = Scheem.parser; }',
+               function (err) {
+      if (err) throw err;
+      complete();
+    });
+  });
+})
