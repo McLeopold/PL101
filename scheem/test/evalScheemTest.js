@@ -41,7 +41,7 @@ suite('Scheem Run', function () {
     })
     test('revenge of the nerds', function () {
       assert.equal(
-        evalScheemString('(begin (define foo (lambda (n) (lambda (i) (+ n i)))) (define bar (foo 7)) (alert (bar 5)) (alert (bar 3)))', {}),
+        evalScheemString('(begin (define foo (lambda (n) (lambda (i) (begin (set! n (+ n i)) n)))) (define bar (foo 7)) (alert (bar 5)) (alert (bar 3)))', {}),
         15
       );
     })
