@@ -1,7 +1,7 @@
 var PEG = require('pegjs')
   , fs = require('fs')
   , input_file = 'scheem.peg'
-  , output_file = 'scheem-parser.js'
+  , output_file = 'scheem_parser.js'
 ;
 
 task('default', ['build']);

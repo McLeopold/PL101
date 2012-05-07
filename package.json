@@ -4,6 +4,6 @@
   "dependencies": {
                    "pegjs": "latest",
                    "chai" : "latest",
-                   "jake" : "latest"
+                   "mocha": "latest"
   }
 }

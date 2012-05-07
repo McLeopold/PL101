@@ -6,10 +6,34 @@ var PEG = require('pegjs')
   , output_file = 'scheem-parser.js'
 ;
 
+task('default', ['deploy']);
+
+task('deploy', [], function () {
+  run('rm -R deploy')
+    .run('mkdir deploy')
+    .run('mkdir deploy/js')
+    .run('mkdir deploy/css')
+    .run('jake -f scheem/Jakefile.js -C scheem')
+    .run('cp scheem/scheem*.js deploy/js/')
+    .run('cp scheem/scheem.peg deploy/')
+    .run('cp scheem/test/*.js deploy/js/')
+    .run('cp scheem/test/*.html deploy/')
+    .run('cp node_modules/mocha/mocha.js deploy/js/')
+    .run('cp node_modules/mocha/mocha.css deploy/css/')
+    .run('cp node_modules/chai/chai.js deploy/js/')
+    .run('cp codemirror2/lib/codemirror.js deploy/js/')
+    .run('cp codemirror2/lib/codemirror.css deploy/css/')
+    .run('cp codemirror2/theme/monokai.css deploy/css/')
+    .run('cp codemirror2/mode/scheme/scheme.js deploy/js/')
+    .run('cp web/*.html deploy/')
+    .run('cp web/js/*.js deploy/js/')
+    .run('cp web/css/*.css deploy/css/')
+});
+
 function puts(callback) {
   return function puts(error, stdout, stderr) {
     util.puts(error ? stderr : stdout);
-    callback();
+    if (!error) callback();
   }
 }
 
@@ -24,42 +48,14 @@ function run(cmd, seq) {
   }
   if (typeof cmd === 'string') {
     seq.push(function (callback) {
+      console.log('running ' + cmd + '...');
       exec(cmd, puts(callback));
     });
   }
   return {
     run: function (cmd) {
-      run(cmd, seq);
+      return run(cmd, seq);
     }
   };
 }
-
-task('default', ['deploy']);
-
-task('build', [], function () {
-  fs.readFile(input_file, function (err, data) {
-    if (err) throw err;
-    fs.writeFile(
-      output_file,
-      'var Scheem = Scheem || {};\nScheem.parser = ' +
-      PEG.buildParser(String(data), {}).toSource() +
-      ';\nif (typeof module !== "undefined") { module.exports = Scheem.parser; }',
-      function (err) {
-        if (err) throw err;
-        complete();
-      }
-    );
-  });
-})
-
-task('deploy', [], function () {
-  run('rm -R deploy/*')
-    .run('jake -f scheem/Jakefile.js -C scheem')
-    .run('cp scheem/scheem-interpreter.js scheem.peg deploy/')
-    .run('mkdir deploy/test')
-    .run('cp scheem/test/*.js scheem/test/*.html deploy/test')
-    .run('cp node_modules/mocha/mocha.* deploy/')
-    .run('cp node_modules/chai/chai.js deploy/')
-    .run('cp web/* deploy/')
-});
 
