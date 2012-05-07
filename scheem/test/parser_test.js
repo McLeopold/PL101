@@ -1,6 +1,6 @@
 if (typeof module !== 'undefined') {
   var chai = require('chai');
-  var parse = require('../scheem-parser.js').parse;
+  var parse = require('../scheem_parser.js').parse;
 } else {
   var parse = Scheem.parser.parse;
 }
