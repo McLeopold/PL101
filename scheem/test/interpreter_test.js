@@ -1,7 +1,8 @@
 if (typeof module !== 'undefined') {
   var chai = require('chai');
   var Scheem = {
-    interpreter: require('../scheem_interpreter.js')
+    interpreter: require('../scheem_interpreter.js'),
+    samples: require('../samples.js')
   };
 }
 var assert = chai.assert;
@@ -38,13 +39,15 @@ suite('Scheem Run', function () {
         evalScheemString('(+ 1 2)', {}),
         3
       );
-    })
-    test('revenge of the nerds', function () {
-      assert.equal(
-        evalScheemString('(begin (define foo (lambda (n) (lambda (i) (begin (set! n (+ n i)) n)))) (define bar (foo 7)) (alert (bar 5)) (alert (bar 3)))', {}),
-        15
-      );
-    })
+    });
+    for (var name in Scheem.samples) { if (Scheem.samples.hasOwnProperty(name)){
+      test(name, function () {
+        assert.deepEqual(
+          evalScheemString(Scheem.samples[name][0]),
+          Scheem.samples[name][1]
+        );
+      });
+    }}
   });
 });
 
