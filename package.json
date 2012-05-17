@@ -2,8 +2,10 @@
   "name"        : "PL101",
   "version"     : "1.0.0",
   "dependencies": {
-                   "pegjs": "latest",
-                   "chai" : "latest",
-                   "mocha": "latest"
+                   "pegjs" : "latest",
+                   "chai"  : "latest",
+                   "mocha" : "latest",
+                   "async" : "latest",
+                   "tooljs": "latest"
   }
 }
