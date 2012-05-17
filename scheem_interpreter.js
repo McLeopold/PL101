@@ -1,6 +1,6 @@
 if (typeof module !== 'undefined') {
   var Scheem = {
-    parser: require('./scheem-parser.js')
+    parser: require('./scheem_parser.js')
   };
 }
 var parse = Scheem.parser.parse;
@@ -8,10 +8,28 @@ var parse = Scheem.parser.parse;
 var Scheem = Scheem || {};
 Scheem.interpreter = (function () {
   var evalScheemString = function (prg, env) {
+    env = env || {bindings: {}, outer: {}};
     var expr = parse(prg);
     return evalScheem(expr, env);
   };
 
+  var lookup = function (env, v) {
+    if (env.bindings) {
+      if (env.bindings.hasOwnProperty(v)) {
+        return env.bindings[v];
+      } else {
+        return lookup(env.outer, v);
+      }
+    } else {
+      if (initial_env.hasOwnProperty(v)) {
+        return initial_env[v];
+      } else {
+        throw new Error('variable ' + v + ' not found');
+      }
+    }
+  };
+
+  /*
   var lookup = function (env, v) {
     if (env === null) {
       throw new Error('function ' + v + ' not found');
@@ -20,7 +38,21 @@ Scheem.interpreter = (function () {
       (env.name === v ? env.value : lookup(env.outer, v)) :
       lookup(initial_env, v);
   };
+  */
 
+  var update = function (env, v, val) {
+    if (env.bindings) {
+      if (env.bindings.hasOwnProperty(v)) {
+        env.bindings[v] = val;
+      } else {
+        update(env.outer, v, val);
+      }
+    } else {
+      throw new Error('set! variable ' + v + ' not defined');
+    }
+  };
+
+  /*
   var update = function (env, v, val) {
     if (env.name === v) {
         env.value = val;
@@ -28,7 +60,19 @@ Scheem.interpreter = (function () {
         update(env.outer, v, val);
     }
   };
+  */
 
+  var add_env = function (env) {
+    env.outer = {bindings: env.bindings,
+                 outer: env.outer};
+    env.bindings = {};
+  }
+
+  var add_binding = function (env, v, val) {
+    env.bindings[v] = val;
+  };
+
+  /*
   var add_binding = function (env, v, val, initial) {
     if (env.name) {
       env.outer = {name: env.name,
@@ -40,42 +84,35 @@ Scheem.interpreter = (function () {
     env.name = v;
     env.value = val;
   };
+  */
 
-  var initial_env = (function () {
-    var name
-      , env = {}
-      , fns = {
-        'assert-args-0': function () {
-          return arguments.length === 0 ? '#t' : '#f';
-        },
-        'assert-args-1': function () {
-          return arguments.length === 1 ? '#t' : '#f';
-        },
-        'assert-args-2': function () {
-          return arguments.length === 2 ? '#t' : '#f';
-        },
-        '+': function (x, y) { return x + y; },
-        '-': function (x, y) { return x - y; },
-        '*': function (x, y) { return x * y; },
-        '/': function (x, y) { return x / y; },
-        '=': function (x, y) { return x === y ? '#t' : '#f'; },
-        '>': function (x, y) { return x > y ? '#t' : '#f'; },
-        '<': function (x, y) { return x < y ? '#t' : '#f'; },
-        '<=>': function (x, y) { return x < y ? -1 : (x === y ? 0 : 1); },
-        'cons': function (x, y) { return [x].concat(y); },
-        'car': function (x, y) { return x[0]; },
-        //'cdr': function (x, y) { x.shift(); return x; },
-        'cdr': function (x, y) { return x.slice(1); },
-        'alert': function (arg) { console.log(arg); return arg; },
-      }
-    ;
-    for (name in fns) {
-      add_binding(env, name, fns[name], true);
-    }
-    return env;
-  }());
+  var initial_env = {
+    'assert-args-0': function () {
+      return arguments.length === 0 ? '#t' : '#f';
+    },
+    'assert-args-1': function () {
+      return arguments.length === 1 ? '#t' : '#f';
+    },
+    'assert-args-2': function () {
+      return arguments.length === 2 ? '#t' : '#f';
+    },
+    '+': function (x, y) { return x + y; },
+    '-': function (x, y) { return x - y; },
+    '*': function (x, y) { return x * y; },
+    '/': function (x, y) { return x / y; },
+    '=': function (x, y) { return x === y ? '#t' : '#f'; },
+    '>': function (x, y) { return x > y ? '#t' : '#f'; },
+    '<': function (x, y) { return x < y ? '#t' : '#f'; },
+    '<=>': function (x, y) { return x < y ? -1 : (x === y ? 0 : 1); },
+    'cons': function (x, y) { return [x].concat(y); },
+    'car': function (x, y) { return x[0]; },
+    'cdr': function (x, y) { x.shift(); return x; },
+    'cdr': function (x, y) { return x.slice(1); },
+    'alert': function (arg) { console.log(arg); return arg; }
+  };
 
   var evalScheem = function (expr, env) {
+    env = env || {bindings: {}, outer: {}};
     // Numbers evaluate to themselves
     if (typeof expr === 'number') {
       return expr;

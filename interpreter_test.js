@@ -41,12 +41,14 @@ suite('Scheem Run', function () {
       );
     });
     for (var name in Scheem.samples) { if (Scheem.samples.hasOwnProperty(name)){
-      test(name, function () {
-        assert.deepEqual(
-          evalScheemString(Scheem.samples[name][0]),
-          Scheem.samples[name][1]
-        );
-      });
+      test(name, function (name) {
+        return function () {
+          assert.deepEqual(
+            evalScheemString(Scheem.samples[name][0]),
+            Scheem.samples[name][1]
+          );
+        }
+      }(name));
     }}
   });
 });
@@ -55,7 +57,7 @@ suite('Scheem Interpreter', function () {
   suite('alert', function () {
     test('alert', function () {
       assert.deepEqual(
-        evalScheem(['alert', 42], {}),
+        evalScheem(['alert', 42]),
         42
       );
     });
@@ -64,46 +66,46 @@ suite('Scheem Interpreter', function () {
   suite('function', function () {
     test('((lambda x x) 5)', function () {
       assert.deepEqual(
-        evalScheem([['lambda', 'x', 'x'], 5], {}),
+        evalScheem([['lambda', 'x', 'x'], 5]),
         5
       );
     });
     test('((lambda x (+ x 1)) 5)', function () {
       assert.deepEqual(
-        evalScheem([['lambda', 'x', ['+', 'x', 1]], 5], {}),
+        evalScheem([['lambda', 'x', ['+', 'x', 1]], 5]),
         6
       );
     });
     test('(((lambda x (lambda y (+ x y))) 5) 3)', function () {
       assert.deepEqual(
         evalScheem([[['lambda', 'x', ['lambda', 'y', ['+', 'x', 'y']]],
-                    5], 3], {}),
+                    5], 3]),
         8
       );
     });
     test('((lambda (x y) (+ x y)) 5 3)', function () {
       assert.deepEqual(
-        evalScheem([['lambda', ['x', 'y'], ['+', 'x', 'y']], 5, 3], {}),
+        evalScheem([['lambda', ['x', 'y'], ['+', 'x', 'y']], 5, 3]),
         8
       );
     });
     test('((lambda () 42))', function () {
       assert.deepEqual(
-        evalScheem([['lambda', [], 42]], {}),
+        evalScheem([['lambda', [], 42]]),
         42
       );
     });
 
     test('unknown function', function () {
       expect(function () {
-        evalScheem(['unknown'], {});
+        evalScheem(['unknown']);
 
       }).to.throw();
     });
 
     test('assert-args-0 with 0 arg', function () {
       assert.deepEqual(
-        evalScheem(['assert-args-0'], {}),
+        evalScheem(['assert-args-0']),
         '#t'
       );
     });
@@ -115,7 +117,7 @@ suite('Scheem Interpreter', function () {
     });
     test('assert-args-1 with 1 arg', function () {
       assert.deepEqual(
-        evalScheem(['assert-args-1', 1], {}),
+        evalScheem(['assert-args-1', 1]),
         '#t'
       );
     });
@@ -133,7 +135,7 @@ suite('Scheem Interpreter', function () {
     });
     test('assert-args-2 with 2 arg', function () {
       assert.deepEqual(
-        evalScheem(['assert-args-2', 1, 2], {}),
+        evalScheem(['assert-args-2', 1, 2]),
         '#t'
       );
     });
@@ -154,13 +156,13 @@ suite('Scheem Interpreter', function () {
   suite('binding', function () {
     test('let-one', function () {
       assert.deepEqual(
-        evalScheem(['let-one', 'x', 5, ['+', 'x', 3]], {}),
+        evalScheem(['let-one', 'x', 5, ['+', 'x', 3]]),
         8
       );
     });
     test('let', function () {
       assert.deepEqual(
-        evalScheem(['let', [['x', 1], ['y', 2]], ['+', 'x', 'y']], {}),
+        evalScheem(['let', [['x', 1], ['y', 2]], ['+', 'x', 'y']]),
         3
       );
     })
@@ -169,19 +171,19 @@ suite('Scheem Interpreter', function () {
   suite('quote', function() {
     test('a number', function() {
       assert.deepEqual(
-        evalScheem(['quote', 3], {}),
+        evalScheem(['quote', 3]),
         3
       );
     });
     test('an atom', function() {
       assert.deepEqual(
-        evalScheem(['quote', 'dog'], {}),
+        evalScheem(['quote', 'dog']),
         'dog'
       );
     });
     test('a list', function() {
       assert.deepEqual(
-        evalScheem(['quote', [1, 2, 3]], {}),
+        evalScheem(['quote', [1, 2, 3]]),
         [1, 2, 3]
       );
     });
@@ -190,25 +192,25 @@ suite('Scheem Interpreter', function () {
   suite('math', function() {
     test('addition', function() {
       assert.equal(
-        evalScheem(['+', 2, 3], {}),
+        evalScheem(['+', 2, 3]),
         5
       );
     });
     test('subtraction', function () {
       assert.equal(
-        evalScheem(['-', 3, 2], {}),
+        evalScheem(['-', 3, 2]),
         1
       );
     });
     test('multiplication', function () {
       assert.equal(
-        evalScheem(['*', 2, 3], {}),
+        evalScheem(['*', 2, 3]),
         6
       );
     });
     test('division', function () {
       assert.equal(
-        evalScheem(['/', 6, 2], {}),
+        evalScheem(['/', 6, 2]),
         3
       );
     });
@@ -216,30 +218,26 @@ suite('Scheem Interpreter', function () {
 
   suite('environment', function () {
     test('define', function () {
-      var env = {};
+      var env = {bindings: {}, outer: {}};
       evalScheem(['define', 'x', 5], env);
       assert.deepEqual(
         env,
-        {name: 'x',
-         value: 5,
+        {bindings: {'x': 5},
          outer: {}}
       );
     });
     test('set!', function () {
-      var env = {name: 'x',
-                 value: 5,
+      var env = {bindings: {'x': 5},
                  outer: {}};
       evalScheem(['set!', 'x', 7], env);
       assert.deepEqual(
         env,
-        {name: 'x',
-         value: 7,
+        {bindings: {'x': 7},
          outer: {}}
       );
     });
     test('reference', function () {
-      var env = {name: 'x',
-                 value: 5,
+      var env = {bindings: {'x': 5},
                  outer: {}};
       assert.deepEqual(
         evalScheem(['+', 'x', 0], env),
@@ -253,7 +251,7 @@ suite('Scheem Interpreter', function () {
       assert.deepEqual(
         evalScheem(['begin',
                     ['define', 'x', 5],
-                    ['+', 'x', 7]], {}),
+                    ['+', 'x', 7]]),
         12
       );
     });
@@ -262,25 +260,25 @@ suite('Scheem Interpreter', function () {
   suite('conditional', function () {
     test('equal true', function () {
       assert.equal(
-        evalScheem(['=', 5, 5], {}),
+        evalScheem(['=', 5, 5]),
         '#t'
       )
     });
     test('equal false', function () {
       assert.equal(
-        evalScheem(['=', 2, 3], {}),
+        evalScheem(['=', 2, 3]),
         '#f'
       );
     });
     test('less than true', function () {
       assert.equal(
-        evalScheem(['<', 5, 7], {}),
+        evalScheem(['<', 5, 7]),
         '#t'
       )
     });
     test('less than false', function () {
       assert.equal(
-        evalScheem(['<', 3, 2], {}),
+        evalScheem(['<', 3, 2]),
         '#f'
       );
     });
@@ -289,13 +287,13 @@ suite('Scheem Interpreter', function () {
   suite('branch', function () {
     test('if true', function () {
       assert.equal(
-        evalScheem(['if', ['quote', '#t'], 1, 2], {}),
+        evalScheem(['if', ['quote', '#t'], 1, 2]),
         1
       );
     });
     test('if false', function () {
       assert.equal(
-        evalScheem(['if', ['quote', '#f'], 1, 2], {}),
+        evalScheem(['if', ['quote', '#f'], 1, 2]),
         2
       );
     });
@@ -304,19 +302,19 @@ suite('Scheem Interpreter', function () {
   suite('list processing', function () {
     test('cons', function () {
       assert.deepEqual(
-        evalScheem(['cons', 1, ['quote', [2, 3]]], {}),
+        evalScheem(['cons', 1, ['quote', [2, 3]]]),
         [1, 2, 3]
       );
     });
     test('car', function () {
       assert.deepEqual(
-        evalScheem(['car', ['quote', [1, 2, 3]]], {}),
+        evalScheem(['car', ['quote', [1, 2, 3]]]),
         1
       );
     });
     test('cdr', function () {
       assert.deepEqual(
-        evalScheem(['cdr', ['quote', [1, 2, 3]]], {}),
+        evalScheem(['cdr', ['quote', [1, 2, 3]]]),
         [2, 3]
       );
     });
