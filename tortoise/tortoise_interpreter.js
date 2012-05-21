@@ -46,7 +46,7 @@ Tortoise.interpreter = (function () {
         update(env.outer, v, val);
       }
     } else {
-      throw new Error('set! variable ' + v + ' not defined');
+      throw new Error('variable ' + v + ' not defined');
     }
   };
 
@@ -85,11 +85,23 @@ Tortoise.interpreter = (function () {
       case '>':
         return evalExpr(expr.left, env) >
                evalExpr(expr.right, env);
+      case '<=':
+        return evalExpr(expr.left, env) <=
+               evalExpr(expr.right, env);
+      case '>=':
+        return evalExpr(expr.left, env) >=
+               evalExpr(expr.right, env);
       case '+':
         return evalExpr(expr.left, env) +
                evalExpr(expr.right, env);
+      case '-':
+        return evalExpr(expr.left, env) -
+               evalExpr(expr.right, env);
       case '*':
         return evalExpr(expr.left, env) *
+               evalExpr(expr.right, env);
+      case '/':
+        return evalExpr(expr.left, env) /
                evalExpr(expr.right, env);
       case 'call':
         // Get function value
@@ -213,6 +225,17 @@ Tortoise.interpreter = (function () {
     this.updateTurtle();
   };
 
+  Turtle.prototype.backward = function (d) {
+    var newx = this.x - Math.cos(Raphael.rad(this.angle)) * d;
+    var newy = this.y + Math.sin(Raphael.rad(this.angle)) * d;
+    if(this.pen) {
+      this.drawTo(newx, newy);
+    }
+    this.x = newx;
+    this.y = newy;
+    this.updateTurtle();
+  };
+
   Turtle.prototype.right = function (ang) {
     this.angle -= ang;
     this.updateTurtle();
@@ -221,19 +244,56 @@ Tortoise.interpreter = (function () {
     this.angle += ang;
     this.updateTurtle();
   };
+  Turtle.prototype.up = function () {
+    this.pen = false;
+  };
+  Turtle.prototype.down = function () {
+    this.pen = true;
+  };
 
   var myTurtle;
-  if (typeof $ !== 'undefined') {
-    $(function () {
-      myTurtle = new Turtle(0, 0, 400, 400);
-    });
-  }
   var init_env = { };
-  add_binding(init_env, 'forward', function(d) { myTurtle.forward(d); });
-  add_binding(init_env, 'right', function(a) { myTurtle.right(a); });
-  add_binding(init_env, 'left', function(a) { myTurtle.left(a); });
+  var positions = [];
+  add_binding(init_env, 'forward', function(d) {
+    myTurtle.forward(d);
+  });
+  add_binding(init_env, 'backward', function(d) {
+    myTurtle.backward(d);
+  });
+  add_binding(init_env, 'right', function(a) {
+    myTurtle.right(a);
+  });
+  add_binding(init_env, 'left', function(a) {
+    myTurtle.left(a);
+  });
+  add_binding(init_env, 'up', function() {
+    myTurtle.up();
+  });
+  add_binding(init_env, 'down', function() {
+    myTurtle.down();
+  });
+  add_binding(init_env, 'push', function () {
+    positions.push({x: myTurtle.x,
+                    y: myTurtle.y,
+                    angle: myTurtle.angle});
+  });
+  add_binding(init_env, 'pop', function () {
+    if (positions.length > 0) {
+      var position = positions.pop();
+      myTurtle.x = position.x;
+      myTurtle.y = position.y;
+      myTurtle.angle = position.angle;
+      myTurtle.updateTurtle();
+    }
+  });
+  add_binding(init_env, 'random', function () {
+    return Math.random();
+  });
+  add_binding(init_env, 'floor', function (n) {
+    return Math.floor(n);
+  });
 
-  return {
+  var obj = {
     evalExpr: evalExpr,
     evalStatement: evalStatement,
     evalStatements: evalStatements,
@@ -242,5 +302,14 @@ Tortoise.interpreter = (function () {
     evalTortoiseString: evalTortoiseString,
     myTortoise: myTurtle
   };
+  var init = function (top, left, width, height) {
+    $(function () {
+      myTurtle = new Turtle(top, left, width, height);
+      obj.myTortoise = myTurtle;
+    });
+  };
+  obj.init = init;
+
+  return obj;
 }());
 if (typeof module !== "undefined") { module.exports = Tortoise.interpreter; }

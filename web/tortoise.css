@@ -29,3 +29,8 @@ input[type="button"] {
 .CodeMirror {
 	border: solid 1px black;
 }
+
+svg {
+	border: solid 1px #f8f8f2;
+	background-color: #fff;
+}

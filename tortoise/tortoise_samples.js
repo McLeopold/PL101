@@ -39,7 +39,28 @@ Scheem.samples = (function () {
       '}',
       '',
       'spiral(5);'
-    ], undefined]
+    ], undefined],
+    'tree': [[
+      'define curve(angle1, angle2, scale, size, count) {',
+      '  define draw_curve(size, count) {',
+      '    if (count > 0) {',
+      '      push();',
+      '      forward(size);',
+      '      left(angle1);',
+      '      draw_curve(size * scale, count - 1);',
+      '      right(angle2);',
+      '      draw_curve(size * scale * scale, count - 1);',
+      '      pop();',
+      '    }',
+      ' }',
+      '  draw_curve(size, count);',
+      '}',
+      '',
+      'up();',
+      'backward(150);',
+      'down();',
+      'curve(33, 90, 0.80, 99, 9);'
+    ], undefined],
   };
   for (var name in samples) { if (samples.hasOwnProperty(name)) {
     samples[name][0] = samples[name][0].join('\n');
