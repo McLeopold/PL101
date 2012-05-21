@@ -29,17 +29,6 @@ Scheem.interpreter = (function () {
     }
   };
 
-  /*
-  var lookup = function (env, v) {
-    if (env === null) {
-      throw new Error('function ' + v + ' not found');
-    }
-    return (!!env && env.hasOwnProperty('name')) ?
-      (env.name === v ? env.value : lookup(env.outer, v)) :
-      lookup(initial_env, v);
-  };
-  */
-
   var update = function (env, v, val) {
     if (env.bindings) {
       if (env.bindings.hasOwnProperty(v)) {
@@ -52,16 +41,6 @@ Scheem.interpreter = (function () {
     }
   };
 
-  /*
-  var update = function (env, v, val) {
-    if (env.name === v) {
-        env.value = val;
-    } else {
-        update(env.outer, v, val);
-    }
-  };
-  */
-
   var add_env = function (env) {
     env.outer = {bindings: env.bindings,
                  outer: env.outer};
@@ -71,20 +50,6 @@ Scheem.interpreter = (function () {
   var add_binding = function (env, v, val) {
     env.bindings[v] = val;
   };
-
-  /*
-  var add_binding = function (env, v, val, initial) {
-    if (env.name) {
-      env.outer = {name: env.name,
-                   value: env.value,
-                   outer: env.outer};
-    } else {
-      env.outer = initial ? null : {};
-    }
-    env.name = v;
-    env.value = val;
-  };
-  */
 
   var initial_env = {
     'assert-args-0': function () {

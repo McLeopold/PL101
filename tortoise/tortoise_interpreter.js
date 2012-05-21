@@ -2,15 +2,72 @@ if (typeof module !== 'undefined') {
   var Tortoise = {
     parser: require('./tortoise_parser.js')
   };
+  var Raphael = function () {
+    return {
+      clear: function () {},
+      image: function () {
+        return {
+          attr: function () {},
+          toFront: function () {}
+        };
+      }
+    };
+  };
+  Raphael.rad = function (deg) {
+    return deg % 360 * Math.pi / 180;
+  }
 }
 var parse = Tortoise.parser.parse;
 
 var Tortoise = Tortoise || {};
 Tortoise.interpreter = (function () {
 
-  var evalScheemString = function (prg, env) {
+  var lookup = function (env, v) {
+    if (env.bindings) {
+      if (env.bindings.hasOwnProperty(v)) {
+        return env.bindings[v];
+      } else {
+        return lookup(env.outer, v);
+      }
+    } else {
+      if (init_env.bindings.hasOwnProperty(v)) {
+        return init_env.bindings[v];
+      } else {
+        throw new Error('variable ' + v + ' not found');
+      }
+    }
+  };
+
+  var update = function (env, v, val) {
+    if (env.bindings) {
+      if (env.bindings.hasOwnProperty(v)) {
+        env.bindings[v] = val;
+      } else {
+        update(env.outer, v, val);
+      }
+    } else {
+      throw new Error('set! variable ' + v + ' not defined');
+    }
+  };
+
+  var add_env = function (env) {
+    env.outer = {bindings: env.bindings,
+                 outer: env.outer};
+    env.bindings = {};
+  }
+
+  var add_binding = function (env, v, val) {
+    if (!env.bindings) {
+      env.bindings = {};
+      env.outer = {};
+    }
+    env.bindings[v] = val;
+  };
+
+  var evalTortoiseString = function (prg, env) {
+    env = env || {};
     var expr = parse(prg);
-    return evalScheem(expr, env);
+    return evalStatements(expr, env);
   };
 
   // Evaluate a Tortoise expression, return value
@@ -24,6 +81,9 @@ Tortoise.interpreter = (function () {
       // Simple built-in binary operations
       case '<':
         return evalExpr(expr.left, env) <
+               evalExpr(expr.right, env);
+      case '>':
+        return evalExpr(expr.left, env) >
                evalExpr(expr.right, env);
       case '+':
         return evalExpr(expr.left, env) +
@@ -74,7 +134,7 @@ Tortoise.interpreter = (function () {
         var count = evalExpr(stmt.expr);
         var val;
         while (count-- > 0) {
-          val = evalStatements(stmt.body);
+          val = evalStatements(stmt.body, env);
         }
         return val;
       case 'define':
@@ -170,8 +230,13 @@ Tortoise.interpreter = (function () {
 
 
   return {
+    evalExpr: evalExpr,
+    evalStatement: evalStatement,
+    evalStatements: evalStatements,
+    lookup: lookup,
     evalTortoise: evalStatements,
-    evalTortoiseString: evalTortoiseString
+    evalTortoiseString: evalTortoiseString,
+    myTortoise: myTurtle
   };
 }());
 if (typeof module !== "undefined") { module.exports = Tortoise.interpreter; }

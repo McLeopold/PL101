@@ -1,22 +1,48 @@
 var Scheem = Scheem || {};
 Scheem.samples = (function () {
   var samples = {
-    'factorial': [[
-      '(begin',
-      '  (define factorial',
-      '    (lambda x',
-      '      (if (= x 0)',
-      '          1',
-      '          (* x (factorial (-x 1))))))',
+    'forward': [[
+      'forward(10);'
+    ], undefined],
+    'left': [[
+      'left(90);'
+    ], undefined],
+    'rose': [[
+      'repeat(18) {',
+      '  right(20);',
+      '  repeat(36) {',
+      '    forward(20);',
+      '    right(10);',
+      '  }',
+      '}'
+    ], undefined],
+    'square': [[
+      'define square(x) {',
+      '  repeat(4) {',
+      '    forward(x);',
+      '    right(90);',
+      '  }',
+      '}',
       '',
-      '  (factorial 5) ;; 120',
-      ')'
-    ], 120],
-    'account': [[
+      'square(100);',
+      'square(20);'
+    ], undefined],
+    'spiral': [[
+      'define spiral(size) {',
+      '  if (size < 30) {',
+      '    forward(size);',
+      '    right(15);',
+      '    var newsize;',
+      '    newsize := size * 1.02;',
+      '    spiral(newsize);',
+      '  }',
+      '}',
+      '',
+      'spiral(5);'
     ], undefined]
   };
   for (var name in samples) { if (samples.hasOwnProperty(name)) {
-    samples[name] = samples[name].join('\n');
+    samples[name][0] = samples[name][0].join('\n');
   }}
   return samples;
 }());
