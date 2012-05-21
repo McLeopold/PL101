@@ -1,0 +1,36 @@
+body {
+	background: #171812;
+	color: #f8f8f2;
+	font-family: monospace;
+}
+input[type="button"] {
+	width: 60px;
+	height: 30px;
+}
+#input {
+	width: 663px;
+}
+#editor {
+	float: left;
+	width: 663px;
+}
+#console {
+	background: #272822;
+	padding: 5px;
+	border: solid 1px black;
+	height: 200px;
+	overflow: auto;
+}
+#help {
+	margin: 10px;
+	float: left;
+	font-family: monospace;
+}
+.CodeMirror {
+	border: solid 1px black;
+}
+
+svg {
+	border: solid 1px #f8f8f2;
+	background-color: #fff;
+}

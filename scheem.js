@@ -32,7 +32,7 @@ $(function() {
       var parsed = Scheem.parser.parse(user_text);
       log_console('Parsed: ' + JSON.stringify(parsed));
       try {
-        var result = Scheem.interpreter.evalScheem(parsed);
+        var result = Scheem.interpreter.evalScheem(parsed, {});
         log_console('Result: ' + JSON.stringify(result));
       }
       catch(e) {

@@ -2,7 +2,7 @@ if (typeof module !== 'undefined') {
   var chai = require('chai');
   var Scheem = {
     interpreter: require('../scheem_interpreter.js'),
-    samples: require('../samples.js')
+    samples: require('../scheem_samples.js')
   };
 }
 var assert = chai.assert;
