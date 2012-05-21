@@ -3,7 +3,7 @@ if (typeof module !== 'undefined') {
   var Tortoise = {
     parser: require('../tortoise_parser.js'),
     interpreter: require('../tortoise_interpreter.js'),
-    samples: require('../samples.js'),
+    samples: require('../tortoise_samples.js'),
   };
 } else {
   var parse = Tortoise.parser.parse;

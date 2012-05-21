@@ -1,0 +1,44 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Tortoise</title>
+  <script src="codemirror.js"></script>
+  <script src="raphael.js"></script>
+  <link rel="stylesheet" href="codemirror.css" />
+  <link rel="stylesheet" href="monokai.css" />
+  <script src="scheme.js"></script>  
+  <link rel="stylesheet" href="tortoise.css" />
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+  <script src="tortoise_parser.js"></script>
+  <script src="tortoise_interpreter.js"></script>
+  <script src="tortoise.js"></script>
+</head>
+<body>
+  <h1>Live Tortoise Editor and Interpreter!</h1>
+  <p>Tortoise <a href="tortoise_test.html">Tests</a> and <a href="tortoise.peg">PEG</a></p>
+  <div id="editor">
+    <div id="codemirror"></div>
+    <input id="check" type="button" value="Check" />
+    <input id="run" type="button" value="Run" /><br />
+    <textarea id="input" cols="80" rows="10">
+(begin
+ ;; accumulator maker
+ (define foo (lambda (n)
+               (lambda (i) (begin
+                            (set! n (+ n i))
+                            n))))
+ 
+ ;; make accumulator starting at 7
+ (define bar (foo 7))
+ 
+ (alert (bar 5)) ;; returns 12
+ (alert (bar 3)) ;; returns 15
+ )
+    </textarea><br />
+    <p>Console:</p>
+    <div id="console"></div>
+  </div>
+  <div id="help">
+  </div>
+</body>
+</html>

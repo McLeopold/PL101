@@ -2,7 +2,7 @@ if (typeof module !== 'undefined') {
   var chai = require('chai');
   var Tortoise = {
     interpreter: require('../tortoise_interpreter.js'),
-    samples: require('../samples.js')
+    samples: require('../tortoise_samples.js')
   };
 }
 var assert = chai.assert;

@@ -222,12 +222,16 @@ Tortoise.interpreter = (function () {
     this.updateTurtle();
   };
 
-  var myTurtle = new Turtle(0, 0, 400, 400);
+  var myTurtle;
+  if (typeof $ !== 'undefined') {
+    $(function () {
+      myTurtle = new Turtle(0, 0, 400, 400);
+    });
+  }
   var init_env = { };
   add_binding(init_env, 'forward', function(d) { myTurtle.forward(d); });
   add_binding(init_env, 'right', function(a) { myTurtle.right(a); });
   add_binding(init_env, 'left', function(a) { myTurtle.left(a); });
-
 
   return {
     evalExpr: evalExpr,
