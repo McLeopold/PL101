@@ -64,34 +64,34 @@ suite('Scheem Interpreter', function () {
   });
 
   suite('function', function () {
-    test('((lambda x x) 5)', function () {
+    test('((fn x x) 5)', function () {
       assert.deepEqual(
-        evalScheem([['lambda', 'x', 'x'], 5]),
+        evalScheem([['fn', 'x', 'x'], 5]),
         5
       );
     });
-    test('((lambda x (+ x 1)) 5)', function () {
+    test('((fn x (+ x 1)) 5)', function () {
       assert.deepEqual(
-        evalScheem([['lambda', 'x', ['+', 'x', 1]], 5]),
+        evalScheem([['fn', 'x', ['+', 'x', 1]], 5]),
         6
       );
     });
-    test('(((lambda x (lambda y (+ x y))) 5) 3)', function () {
+    test('(((fn x (fn y (+ x y))) 5) 3)', function () {
       assert.deepEqual(
-        evalScheem([[['lambda', 'x', ['lambda', 'y', ['+', 'x', 'y']]],
+        evalScheem([[['fn', 'x', ['fn', 'y', ['+', 'x', 'y']]],
                     5], 3]),
         8
       );
     });
-    test('((lambda (x y) (+ x y)) 5 3)', function () {
+    test('((fn (x y) (+ x y)) 5 3)', function () {
       assert.deepEqual(
-        evalScheem([['lambda', ['x', 'y'], ['+', 'x', 'y']], 5, 3]),
+        evalScheem([['fn', ['x', 'y'], ['+', 'x', 'y']], 5, 3]),
         8
       );
     });
-    test('((lambda () 42))', function () {
+    test('((fn () 42))', function () {
       assert.deepEqual(
-        evalScheem([['lambda', [], 42]]),
+        evalScheem([['fn', [], 42]]),
         42
       );
     });
@@ -217,9 +217,9 @@ suite('Scheem Interpreter', function () {
   });
 
   suite('environment', function () {
-    test('define', function () {
+    test('=', function () {
       var env = {bindings: {}, outer: {}};
-      evalScheem(['define', 'x', 5], env);
+      evalScheem(['=', 'x', 5], env);
       assert.deepEqual(
         env,
         {bindings: {'x': 5},
@@ -250,7 +250,7 @@ suite('Scheem Interpreter', function () {
     test('begin', function () {
       assert.deepEqual(
         evalScheem(['begin',
-                    ['define', 'x', 5],
+                    ['=', 'x', 5],
                     ['+', 'x', 7]]),
         12
       );
@@ -260,13 +260,13 @@ suite('Scheem Interpreter', function () {
   suite('conditional', function () {
     test('equal true', function () {
       assert.equal(
-        evalScheem(['=', 5, 5]),
+        evalScheem(['==', 5, 5]),
         '#t'
       )
     });
     test('equal false', function () {
       assert.equal(
-        evalScheem(['=', 2, 3]),
+        evalScheem(['==', 2, 3]),
         '#f'
       );
     });

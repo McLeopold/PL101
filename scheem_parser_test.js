@@ -23,7 +23,7 @@ suite('Scheem Parser', function(){
     });
     test('should return a nested list for "(a (b))"', function(){
       assert.deepEqual(
-        parse("(a(b))"),
+        parse("(a (b))"),
         ['a', ['b']]
       );
     })
