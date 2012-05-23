@@ -37,7 +37,7 @@ Scheem.interpreter = (function () {
         update(env.outer, v, val);
       }
     } else {
-      throw new Error('set! variable ' + v + ' not defined');
+      throw new Error('variable ' + v + ' not defined');
     }
   };
 
@@ -48,6 +48,10 @@ Scheem.interpreter = (function () {
   }
 
   var add_binding = function (env, v, val) {
+    if (!env.bindings) {
+      env.bindings = {};
+      env.outer = {};
+    }
     env.bindings[v] = val;
   };
 

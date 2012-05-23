@@ -4,20 +4,20 @@ var exec = require('tooljs').exec
 task('default', ['deploy']);
 
 task('clean', [], function () {
-  exec([], {verbose: false})
+  exec([], {verbose: false}, function () { console.log('done with cleanup'); complete(); })
     .rm('deploy/*', {recursive: true})
   ;
-});
+}, true);
 
 task('compile', [], function () {
-  exec([], {verbose: true})
+  exec([], {verbose: true}, function () { complete(); })
     .run('jake -f scheem/Jakefile.js -C scheem')
     .run('jake -f tortoise/Jakefile.js -C tortoise')
   ;
-});
+}, true);
 
 task('deploy', ['clean', 'compile'], function () {
-  exec([], {verbose: true})
+  exec([], {verbose: true}, function () { complete(); })
     .cp('scheem/scheem*', 'deploy/')
     .cp('scheem/test/*', 'deploy/')
     .cp('tortoise/tortoise*', 'deploy/')
@@ -31,4 +31,4 @@ task('deploy', ['clean', 'compile'], function () {
     .cp('CodeMirror2/mode/javascript/javascript.js', 'deploy/')
     .cp('raphael/raphael.js', 'deploy/')
   ;
-});
+}, true);

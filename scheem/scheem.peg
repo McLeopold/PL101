@@ -1,7 +1,37 @@
-start = expression
+start = es:expression+
+  {
+    if (es.length > 1) {
+      return ['begin'].concat(es);
+    } else {
+      return es[0];
+    }
+  }
 
-expression = WS? e:(quote / integer / atom / atomlist) WS?
+expression = WS? e:(modernlist / infixlist / atomlist / quote / integer / atom) WS?
   { return e; }
+
+infixlist = OpenInfix es:expression* CloseInfix
+  {
+    if (es.length % 2 === 1 && es.length >= 3) {
+      var symbol = es[1]
+        , l      = [es[0], es[2]]
+      ;
+      for (var i = 3; i < es.length; i += 2) {
+        if (es[i] === symbol) {
+          l.push(es[i+1]);
+        } else {
+          break;
+        }
+      }
+      if (l.length === (es.length + 1) / 2) {
+        return [symbol].concat(l);
+      }
+    }
+    return ["nfx"].concat(es);
+  }
+
+modernlist = a:atom l:atomlist
+  { return [a].concat(l); }
 
 atomlist = OpenChar es:expression* CloseChar
   { return es; }
@@ -23,5 +53,7 @@ SpaceChar = [\u0009\u0020\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\
 QuoteChar = "'"
 OpenChar = '('
 CloseChar = ')'
+OpenInfix = '{'
+CloseInfix = '}'
 CommentChar = ';;'
 SourceChar = [\u0000-\uffff]
