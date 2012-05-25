@@ -69,7 +69,7 @@ Scheem.interpreter = (function () {
     '-': function (x, y) { return x - y; },
     '*': function (x, y) { return x * y; },
     '/': function (x, y) { return x / y; },
-    '=': function (x, y) { return x === y ? '#t' : '#f'; },
+    '==': function (x, y) { return x === y ? '#t' : '#f'; },
     '>': function (x, y) { return x > y ? '#t' : '#f'; },
     '<': function (x, y) { return x < y ? '#t' : '#f'; },
     '<=>': function (x, y) { return x < y ? -1 : (x === y ? 0 : 1); },
@@ -91,7 +91,7 @@ Scheem.interpreter = (function () {
     }
     // Look at head of list for operation
     switch (expr[0]) {
-      case 'define':
+      case '=':
         if (env === null) {
           env = {name: expr[1],
                  value: evalScheem(expr[2]),
@@ -126,7 +126,7 @@ Scheem.interpreter = (function () {
         } else {
           return evalScheem(expr[3], env);
         }
-      case 'lambda':
+      case 'fn':
         return function () {
           for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
             add_binding(env, expr[1][i], arguments[i]);

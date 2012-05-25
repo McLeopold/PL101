@@ -5,7 +5,6 @@ var log_console = function(msg) {
 // After page load
 $(function() {
   var myCodeMirror = CodeMirror.fromTextArea(document.getElementById('input'), {
-    value: "(begin\n     ;; accumulator maker function\n      (define foo (lambda (n)\n                                  (lambda (i) (begin\n                                                                           (set! n (+ n i))\n                                                                                                       n))))\n      \n       ;; make accumulator starting at 7\n        (define bar (foo 7))\n         \n         (alert (bar 5)) ;; returns 12\n          (alert (bar 3)) ;; return 15\n          )",
     mode:  "javascript",
     theme: "monokai"
   });
