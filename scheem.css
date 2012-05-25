@@ -1,6 +1,6 @@
 body {
-	background: #171812;
-	color: #f8f8f2;
+	/*background: #171812;*/
+	/*color: #f8f8f2;*/
 	font-family: monospace;
 }
 input[type="button"] {
@@ -15,7 +15,7 @@ input[type="button"] {
 	width: 663px;
 }
 #console {
-	background: #272822;
+	/*background: #272822;*/
 	padding: 5px;
 	border: solid 1px black;
 	height: 200px;

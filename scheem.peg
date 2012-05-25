@@ -1,59 +1,85 @@
-start = es:expression+
-  {
-    if (es.length > 1) {
-      return ['begin'].concat(es);
-    } else {
+start = exprs
+
+exprs = WS? es:exprline* WS?
+  { 
+    if (es.length === 0) {
+      return [];
+    } else if (es.length === 1) {
       return es[0];
+    } else {
+      return ['begin'].concat(es);
     }
   }
 
-expression = WS? e:(modernlist / infixlist / atomlist / quote / integer / atom) WS?
-  { return e; }
-
-infixlist = OpenInfix es:expression* CloseInfix
+expr = WS? e:(blocks / atomlist / list / quote / integer / atom) cs:(atomlist+)?
   {
-    if (es.length % 2 === 1 && es.length >= 3) {
-      var symbol = es[1]
-        , l      = [es[0], es[2]]
-      ;
-      for (var i = 3; i < es.length; i += 2) {
-        if (es[i] === symbol) {
-          l.push(es[i+1]);
-        } else {
-          break;
-        }
-      }
-      if (l.length === (es.length + 1) / 2) {
-        return [symbol].concat(l);
-      }
+    var result = e;
+    for (var i = 0, ilen = cs.length; i < ilen; ++i) {
+      result = [result].concat(cs[i]);
     }
-    return ["nfx"].concat(es);
+    return result;
   }
 
-modernlist = a:atom l:atomlist
-  { return [a].concat(l); }
+exprline = es:exprpiece+ (EOL / &CloseBlock)
+  { return es.length === 1 ? es[0] : es; }
 
-atomlist = OpenChar es:expression* CloseChar
+exprpiece = W? e:(blocks / atomlist / list / quote / integer / atom) cs:(atomlist+)?
+  {
+    var result = e;
+    for (var i = 0, ilen = cs.length; i < ilen; ++i) {
+      result = [result].concat(cs[i]);
+    }
+    return result;
+  }
+
+atomlist = OpenChar WS? es:expr* WS? CloseChar
   { return es; }
+
+blocks
+  = block
+  / fnblock
+  / ifblock
+
+block = OpenBlock WS? es:exprs CloseBlock
+  { return es; }
+
+fnblock = "fn" WS? a:atomlist WS? b:block
+  { return ["fn", a, b]; }
+
+ifblock = "if" WS? e:expr WS? b:block els:elseblock?
+  { return els ? ["if", e, b, els] : ["if", e, b]; }
+
+elseblock = WS? "else" WS? b:block
+  { return b; }
 
 atom = chars:AtomChar+
   { return chars.join(''); }
 
-quote = QuoteChar e:expression
+quote = QuoteChar e:expr
   { return ['quote', e]; }
 
+list = OpenInfix WS? es:expr* CloseInfix
+  { return ['quote', es]; }
+
+W = (SpaceChar / Comment)+
 WS = (SpaceChar / EOLChar / Comment)+
 Comment = CommentChar LineChar*
-integer = d:[0-9]+ { return parseInt(d.join(''), 10); }
+integer = d:[0-9]+ !(AtomChar)
+  { return parseInt(d.join(''), 10); }
 
-AtomChar = [0-9a-zA-Z_?!+\-=@#$%^&*/.]
+AtomChar = [0-9a-zA-Z_?!+\-=@#$%^&*/]
 LineChar = (!(EOLChar) SourceChar)
 EOLChar = [\u000a\u000b\u000c\u000d\u0085\u2028\u2029]
 SpaceChar = [\u0009\u0020\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006]
 QuoteChar = "'"
 OpenChar = '('
 CloseChar = ')'
-OpenInfix = '{'
-CloseInfix = '}'
+OpenInfix = '['
+CloseInfix = ']'
+OpenBlock = '{'
+CloseBlock = '}'
 CommentChar = ';;'
 SourceChar = [\u0000-\uffff]
+EOF = !(SourceChar)
+EOL = (EOLChar)* EOF
+    / (EOLChar)+
