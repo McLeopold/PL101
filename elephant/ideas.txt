@@ -52,7 +52,7 @@ Operators - these are all infix
     ~ - not / inverse / negate
     <<
     >>
-  logical
+  comparison
     in - contains
     <=> - starship or python cmp
     >
@@ -61,6 +61,7 @@ Operators - these are all infix
     <=
     ==
     !=
+  logical
     !! - not
     &&
     ||

@@ -18,7 +18,7 @@ input[type="button"] {
 	/*background: #272822;*/
 	padding: 5px;
 	border: solid 1px black;
-	height: 200px;
+	height: 300px;
 	overflow: auto;
 }
 #help {
