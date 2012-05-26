@@ -19,16 +19,15 @@
     <div id="codemirror"></div>
     <input id="check" type="button" value="Check" />
     <input id="run" type="button" value="Run" /><br />
-    <textarea id="input" cols="80" rows="10">
-= foo fn (n) {
+    <textarea id="input" cols="80" rows="5">
+accum := fn (n) {
   fn (i) {
-    set!(n +(n i))
-    n
+    n += i
   }
 }
-= bar foo(7)
-alert(bar(5))
-alert(bar(3))
+acct := accum(7)
+acct(5)
+alert(acct(3))
     </textarea><br />
     <p>Console:</p>
     <div id="console"></div>
