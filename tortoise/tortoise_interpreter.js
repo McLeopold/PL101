@@ -259,43 +259,27 @@ Tortoise.interpreter = (function () {
           }, xcont);
         }, xcont);
       case 'call':
-        // Get function value
-        var func = lookup(env, expr.name);
-        var i = -1;
-        var eval_args = [];
-        var new_bindings = {bindings: {}, outer: func.env};
-        return thunk(function nextArg(r) {
+        var func = lookup(env, expr.name)
+          , i = -1
+          , ilen = expr.args.length
+          , eval_args = []
+        ;
+        return function nextArg(r) {
           if (i >= 0) {
             eval_args[i] = r;
           }
-          i += 1;
-          if (i === expr.args.length) {
+          if (++i < ilen) {
+            return thunk(evalExpr, expr.args[i], env, nextArg, xcont);
+          } else {
             if (typeof func === 'function') {
               return thunk(cont, func.apply(null, eval_args));
             } else {
-              add_bindings(new_bindings, func.args, eval_args);
-              return thunk(evalStatements, func.body, new_bindings, cont, xcont);
+              return thunk(evalStatements, func.body, 
+                add_bindings({bindings: {}, outer: func.env}, func.args, eval_args),
+                cont, xcont);
             }
-          } else {
-            eval_args[i] = r;
-            return thunk(evalExpr, expr.args[i], env, nextArg, xcont);
           }
-        });
-        if (typeof func === 'function') {
-          var i = 0;
-          var ev_args = [];
-          for(i = 0; i < expr.args.length; i++) {
-            ev_args.push(evalExprFull(expr.args[i], env));
-          }
-          return thunk(cont, func.apply(null, ev_args));
-        } else {
-          var i = 0;
-          for(i = 0; i < expr.args.length; i++) {
-            add_binding(func.env, func.args[i], evalExprFull(expr.args[i], env));
-          }
-          return thunk(evalStatements, func.body, func.env, cont, xcont);
-        }
-        //return func.apply(null, ev_args);
+        }();
       case 'ident':
         return thunk(cont, lookup(env, expr.name));
 
@@ -329,16 +313,15 @@ Tortoise.interpreter = (function () {
           }
         }, xcont);           
       case 'repeat':
-        return thunk(evalExpr, stmt.expr, env, function (v) {
+        return thunk(evalExpr, stmt.expr, env, function (count) {
           var i = -1;
-          return thunk(function repeatStmt (r) {
-            i += 1;
-            if (i === v) {
-              return thunk(cont, r);
-            } else {
+          return function repeatStmt (r) {
+            if (++i < count) {
               return thunk(evalStatements, stmt.body, env, repeatStmt, xcont);
+            } else {
+              return thunk(cont, r);
             }
-          });
+          }();
         }, xcont);
       case 'define':
         return thunk(cont, add_binding(env, stmt.name, {
@@ -350,15 +333,16 @@ Tortoise.interpreter = (function () {
   };
 
   var evalStatements = function (seq, env, cont, xcont) {
-    var i = -1;
-    return thunk(function evalNext (r) {
-      i += 1;
-      if (i === seq.length) {
-        return thunk(cont, r);
-      } else {
+    var i = -1
+      , ilen = seq.length
+    ;
+    return function evalNext (r) {
+      if (++i < ilen) {
         return thunk(evalStatement, seq[i], env, evalNext, xcont);
+      } else {
+        return thunk(cont, r);
       }
-    });
+    }();
   };
 
   var Turtle = function (x, y, w, h) {
@@ -376,17 +360,29 @@ Tortoise.interpreter = (function () {
     this.updateTurtle();
   };
 
+  Turtle.prototype.setSpeed = function (speed) {
+    this.speed = speed;
+  };
+
   Turtle.prototype.updateTurtle = function () {
     if(this.turtleimg === undefined) {
       this.turtleimg = this.paper.image(
           "http://nathansuniversity.com/gfx/turtle2.png",
           0, 0, 64, 64);
     }
-    this.turtleimg.attr({
-      x: this.x - 32,
-      y: this.y - 32,
-      transform: "r" + (-this.angle)});
     this.turtleimg.toFront();
+    this.turtleimg.animate(
+      {
+        x: this.x - 32,
+        y: this.y - 32,
+        transform: "r" + (-this.angle)
+      },
+      this.speed
+    );
+  };
+
+  Turtle.prototype.hideTurtle = function () {
+    this.turtleimg.remove();
   };
 
   Turtle.prototype.drawTo = function (x, y) {

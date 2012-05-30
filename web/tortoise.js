@@ -30,6 +30,7 @@ var nice_env = function (data) {
 }
 // After page load
 $(function() {
+  var state;
   var myCodeMirror = CodeMirror.fromTextArea(document.getElementById('input'), {
     mode:  "javascript",
     //theme: "neat"
@@ -61,6 +62,7 @@ $(function() {
     }
   });
   $('#run').click(function() {
+    state = {data: null, done: true};
     Tortoise.interpreter.myTortoise.clear();
     myCodeMirror.save();
     var user_text = $('#input').val();
@@ -81,7 +83,6 @@ $(function() {
 //      log_console('Parse Error: ' + e);
 //    }
   });
-  var state;
   var draw_start = function() {
     Tortoise.interpreter.myTortoise.clear();
     myCodeMirror.save();
@@ -90,18 +91,23 @@ $(function() {
     var parsed = Tortoise.parser.parse(user_text);
     var env = {};
     state = Tortoise.interpreter.startStatements(parsed, env);
-    //$('#console').html(JSON.stringify(state));
   }
+  var is_drawing = function (state) {
+    return (state.data.args &&
+            state.data.args[0] &&
+            state.data.args[0].tag === 'call' &&
+            state.data.args[0].name in {'forward': true,
+                                        'backward': true,
+                                        'left': true,
+                                        'right': true,
+                                        'pop': true});
+  };
   var draw_step = function() {
-    Tortoise.interpreter.step(state);
-    while (!state.done && !(state.data.args &&
-                            state.data.args[0] &&
-                            state.data.args[0].tag === 'call' &&
-                            state.data.args[0].name in {'forward': true,
-                                                        'backward': true,
-                                                        'left': true,
-                                                        'right': true})) {
+    if (state && !state.done) {
       Tortoise.interpreter.step(state);
+      while (!state.done && !is_drawing(state)) {
+        Tortoise.interpreter.step(state);        
+      }
     }
   };
   $('#start').click(draw_start);
@@ -109,11 +115,13 @@ $(function() {
   $('#play').click(function () {
     draw_start();
     setTimeout(function nextDrawStep () {
+      var speed = parseInt($('#speed').val(), 10);
+      Tortoise.interpreter.myTortoise.setSpeed(speed);
       draw_step();
       if (!state.done) {
-        setTimeout(nextDrawStep, parseInt($('#speed').val(), 10));
+        setTimeout(nextDrawStep, speed);
       } else {
-        console.log('done');
+        Tortoise.interpreter.myTortoise.hideTurtle();
       }
     }, parseInt($('#speed').val(), 10));
   });
