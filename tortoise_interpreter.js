@@ -22,6 +22,10 @@ var parse = Tortoise.parser.parse;
 var Tortoise = Tortoise || {};
 Tortoise.interpreter = (function () {
 
+  function Exception (message) {
+    this.message = message;
+  }
+
   var lookup = function (env, v) {
     if (env.bindings) {
       if (env.bindings.hasOwnProperty(v)) {
@@ -39,6 +43,7 @@ Tortoise.interpreter = (function () {
   };
 
   var update = function (env, v, val) {
+    //console.log('update', env, v, val);
     if (env.bindings) {
       if (env.bindings.hasOwnProperty(v)) {
         env.bindings[v] = val;
@@ -48,6 +53,7 @@ Tortoise.interpreter = (function () {
     } else {
       throw new Error('variable ' + v + ' not defined');
     }
+    return val;
   };
 
   var add_env = function (env) {
@@ -56,132 +62,304 @@ Tortoise.interpreter = (function () {
     env.bindings = {};
   }
 
-  var add_binding = function (env, v, val) {
+  var add_binding = function (env, v, val, pause) {
     if (!env.bindings) {
       env.bindings = {};
       env.outer = {};
     }
     env.bindings[v] = val;
+    val.pause = !!pause;
+    return val;
   };
 
-  var evalTortoiseString = function (prg, env) {
+  var add_bindings = function (env, vars, vals) {
+    if (!env.bindings) {
+      env.bindings = {};
+      env.outer = {};
+    }
+    for (var i = 0, ilen = vars.length; i < ilen; ++i) {
+      env.bindings[vars[i]] = vals[i];
+    }
+    return env;
+  };
+
+  var thunk = function (f, lst) {
+    return {
+      tag: 'thunk',
+      func: f,
+      args: lst
+    };
+  };
+
+  var thunk = function (f) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return {
+      tag: "thunk",
+      func: f,
+      args: args
+    };
+};
+
+  var thunkValue = function (x) {
+    return {
+      tag: 'value',
+      val: x
+    };
+  };
+
+  var trampoline = function (thk) {
+    while (true) {
+      if (thk.tag === 'value') {
+        return thk.val;
+      }
+      if (thk.tag === 'thunk') {
+        thk = thk.func.apply(null, thk.args);
+      }
+    }
+  };
+
+  var start_expr_step = function (expr, env) {
+    return {
+      data: evalExpr(expr, env, thunkValue),
+      done: false
+    };
+  }
+
+  var start_statement_step = function (expr, env) {
+    return {
+      data: evalStatement(expr, env, thunkValue),
+      done: false
+    };
+  }
+
+  var start_statements_step = function (expr, env) {
+    return {
+      data: evalStatements(expr, env, thunkValue),
+      done: false
+    };
+  }
+
+  var step = function (state, count) {
+    //console.log('step', count, state);
+    if (state.data.tag === 'value') {
+      state.data = state.data.val;
+      state.done = true;
+    } else if (state.data.tag === 'thunk') {
+      state.data = state.data.func.apply(null, state.data.args);
+    } else {
+      throw new Exception("What?");
+    }
+  }
+
+  var evalExprFull = function (expr, env) {
+    var count = evalExprFull.count++;
+    //console.log('evalExprFull', expr);
+    var state = start_expr_step(expr, env);
+    while (!state.done) {
+      step(state, count);
+    }
+    return state.data;
+  }
+  evalExprFull.count = 0;
+
+  var evalStatementFull = function (stmt, env, cont, xcont) {
+    var count = evalStatementFull.count++;
+    //console.log('evalStatementFull', stmt);
+    var state = start_statement_step(stmt, env);
+    while (!state.done) {
+      step(state, count);
+    }
+    return state.data;
+  }
+  evalStatementFull.count = 0;
+
+  var evalStatementsFull = function (stmt, env, cont, xcont) {
+    var count = evalStatementsFull.count++;
+    //console.log('evalStatementsFull', stmt);
+    var state = start_statements_step(stmt, env);
+    while (!state.done) {
+      step(state, count);
+    }
+    return state.data;
+  }
+  evalStatementsFull.count = 0;
+
+  var evalTortoiseString = function (prg, env, cont, xcont) {
     env = env || {};
     var expr = parse(prg);
-    return evalStatements(expr, env);
+    return evalStatementsFull(expr, env);
   };
 
+
   // Evaluate a Tortoise expression, return value
-  var evalExpr = function (expr, env) {
+  var evalExpr = function (expr, env, cont, xcont) {
     // Numbers evaluate to themselves
     if (typeof expr === 'number') {
+      return thunk(cont, expr);
       return expr;
     }
     // Look at tag to see what to do
     switch(expr.tag) {
       // Simple built-in binary operations
       case '<':
-        return evalExpr(expr.left, env) <
-               evalExpr(expr.right, env);
+        return thunk(evalExpr, expr.left, env, function (v1) {
+          return thunk(evalExpr, expr.right, env, function (v2) {
+            return thunk(cont, v1 < v2);
+          }, xcont);
+        }, xcont);
       case '>':
-        return evalExpr(expr.left, env) >
-               evalExpr(expr.right, env);
+        return thunk(evalExpr, expr.left, env, function (v1) {
+          return thunk(evalExpr, expr.right, env, function (v2) {
+            return thunk(cont, v1 > v2);
+          }, xcont);
+        }, xcont);
       case '<=':
-        return evalExpr(expr.left, env) <=
-               evalExpr(expr.right, env);
+        return thunk(evalExpr, expr.left, env, function (v1) {
+          return thunk(evalExpr, expr.right, env, function (v2) {
+            return thunk(cont, v1 <= v2);
+          }, xcont);
+        }, xcont);
       case '>=':
-        return evalExpr(expr.left, env) >=
-               evalExpr(expr.right, env);
+        return thunk(evalExpr, expr.left, env, function (v1) {
+          return thunk(evalExpr, expr.right, env, function (v2) {
+            return thunk(cont, v1 >= v2);
+          }, xcont);
+        }, xcont);
       case '+':
-        return evalExpr(expr.left, env) +
-               evalExpr(expr.right, env);
+        return thunk(evalExpr, expr.left, env, function (v1) {
+          return thunk(evalExpr, expr.right, env, function (v2) {
+            return thunk(cont, v1 + v2);
+          }, xcont);
+        }, xcont);
       case '-':
-        return evalExpr(expr.left, env) -
-               evalExpr(expr.right, env);
+        return thunk(evalExpr, expr.left, env, function (v1) {
+          return thunk(evalExpr, expr.right, env, function (v2) {
+            return thunk(cont, v1 - v2);
+          }, xcont);
+        }, xcont);
       case '*':
-        return evalExpr(expr.left, env) *
-               evalExpr(expr.right, env);
+        return thunk(evalExpr, expr.left, env, function (v1) {
+          return thunk(evalExpr, expr.right, env, function (v2) {
+            return thunk(cont, v1 * v2);
+          }, xcont);
+        }, xcont);
       case '/':
-        return evalExpr(expr.left, env) /
-               evalExpr(expr.right, env);
+        return thunk(evalExpr, expr.left, env, function (v1) {
+          return thunk(evalExpr, expr.right, env, function (v2) {
+            if (v2 === 0)
+              return thunk(xcont, 'Exception');
+            else
+              return thunk(cont, v1 / v2);
+          }, xcont);
+        }, xcont);
       case 'call':
         // Get function value
         var func = lookup(env, expr.name);
-        // Evaluate arguments to pass
-        var ev_args = [];
-        var i = 0;
-        for(i = 0; i < expr.args.length; i++) {
-          ev_args[i] = evalExpr(expr.args[i], env);
+        var i = -1;
+        var eval_args = [];
+        var new_bindings = {bindings: {}, outer: func.env};
+        return thunk(function nextArg(r) {
+          if (i >= 0) {
+            eval_args[i] = r;
+          }
+          i += 1;
+          if (i === expr.args.length) {
+            if (typeof func === 'function') {
+              return thunk(cont, func.apply(null, eval_args));
+            } else {
+              add_bindings(new_bindings, func.args, eval_args);
+              return thunk(evalStatements, func.body, new_bindings, cont, xcont);
+            }
+          } else {
+            eval_args[i] = r;
+            return thunk(evalExpr, expr.args[i], env, nextArg, xcont);
+          }
+        });
+        if (typeof func === 'function') {
+          var i = 0;
+          var ev_args = [];
+          for(i = 0; i < expr.args.length; i++) {
+            ev_args.push(evalExprFull(expr.args[i], env));
+          }
+          return thunk(cont, func.apply(null, ev_args));
+        } else {
+          var i = 0;
+          for(i = 0; i < expr.args.length; i++) {
+            add_binding(func.env, func.args[i], evalExprFull(expr.args[i], env));
+          }
+          return thunk(evalStatements, func.body, func.env, cont, xcont);
         }
-        return func.apply(null, ev_args);
+        //return func.apply(null, ev_args);
       case 'ident':
-        return lookup(env, expr.name);
+        return thunk(cont, lookup(env, expr.name));
 
     }
   };
 
-  var evalStatement = function (stmt, env) {
+  var evalStatement = function (stmt, env, cont, xcont) {
+    //console.log('evalStatement', stmt, env, cont, xcont);
     var val = undefined;
     // Statements always have tags
     switch(stmt.tag) {
       // A single expression
       case 'ignore':
         // Just evaluate expression
-        return evalExpr(stmt.body, env);
+        return thunk(evalExpr, stmt.body, env, cont, xcont);
       // Declare new variable
       case 'var':
         // New variable gets default value of 0
-        add_binding(env, stmt.name, 0);
-        return 0;
+        return thunk(cont, add_binding(env, stmt.name, 0));
       case ':=':
         // Evaluate right hand side
-        val = evalExpr(stmt.right, env);
-        update(env, stmt.left, val);
-        return val;
+        return thunk(evalExpr, stmt.right, env, function (v) {
+          return thunk(cont, update(env, stmt.left, v));
+        }, xcont);
       case 'if':
-        if(evalExpr(stmt.expr, env)) {
-          val = evalStatements(stmt.body, env);
-        }
-        return val;            
-      case 'repeat':
-        var count = evalExpr(stmt.expr);
-        var val;
-        while (count-- > 0) {
-          val = evalStatements(stmt.body, env);
-        }
-        return val;
-      case 'define':
-        // name args body
-        var new_func = function() {
-          // This function takes any number of arguments
-          var i;
-          var new_env;
-          var new_bindings;
-          new_bindings = { };
-          for(i = 0; i < stmt.args.length; i++) {
-            new_bindings[stmt.args[i]] = arguments[i];
+        return thunk(evalExpr, stmt.expr, env, function (v) {
+          if (v) {
+            return thunk(evalStatements, stmt.body, env, cont, xcont);
+          } else {
+            return thunk(cont);
           }
-          new_env = { bindings: new_bindings, outer: env };
-          return evalStatements(stmt.body, new_env);
-        };
-        add_binding(env, stmt.name, new_func);
-        return 0;            
+        }, xcont);           
+      case 'repeat':
+        return thunk(evalExpr, stmt.expr, env, function (v) {
+          var i = -1;
+          return thunk(function repeatStmt (r) {
+            i += 1;
+            if (i === v) {
+              return thunk(cont, r);
+            } else {
+              return thunk(evalStatements, stmt.body, env, repeatStmt, xcont);
+            }
+          });
+        }, xcont);
+      case 'define':
+        return thunk(cont, add_binding(env, stmt.name, {
+          body: stmt.body,
+          env: env,
+          args: stmt.args
+        }));
     }
   };
 
-  var evalStatements = function (seq, env) {
-      var i;
-      var val = undefined;
-      for(i = 0; i < seq.length; i++) {
-        val = evalStatement(seq[i], env);
+  var evalStatements = function (seq, env, cont, xcont) {
+    var i = -1;
+    return thunk(function evalNext (r) {
+      i += 1;
+      if (i === seq.length) {
+        return thunk(cont, r);
+      } else {
+        return thunk(evalStatement, seq[i], env, evalNext, xcont);
       }
-      return val;
+      i += 1;
+    });
   };
 
   var Turtle = function (x, y, w, h) {
     this.paper = Raphael(x, y, w, h);
     this.originx = w / 2;
     this.originy = h / 2;
-    this.clear();
   };
   Turtle.prototype.clear = function () {
     this.paper.clear();
@@ -256,16 +434,16 @@ Tortoise.interpreter = (function () {
   var positions = [];
   add_binding(init_env, 'forward', function(d) {
     myTurtle.forward(d);
-  });
+  }, true);
   add_binding(init_env, 'backward', function(d) {
     myTurtle.backward(d);
-  });
+  }, true);
   add_binding(init_env, 'right', function(a) {
     myTurtle.right(a);
-  });
+  }, true);
   add_binding(init_env, 'left', function(a) {
     myTurtle.left(a);
-  });
+  }, true);
   add_binding(init_env, 'up', function() {
     myTurtle.up();
   });
@@ -285,7 +463,7 @@ Tortoise.interpreter = (function () {
       myTurtle.angle = position.angle;
       myTurtle.updateTurtle();
     }
-  });
+  }, true);
   add_binding(init_env, 'random', function () {
     return Math.random();
   });
@@ -294,11 +472,13 @@ Tortoise.interpreter = (function () {
   });
 
   var obj = {
-    evalExpr: evalExpr,
-    evalStatement: evalStatement,
-    evalStatements: evalStatements,
+    evalExpr: evalExprFull,
+    evalStatement: evalStatementFull,
+    evalStatements: evalStatementsFull,
+    startStatements: start_statements_step,
+    step: step,
     lookup: lookup,
-    evalTortoise: evalStatements,
+    evalTortoise: evalStatementsFull,
     evalTortoiseString: evalTortoiseString,
     myTortoise: myTurtle
   };
