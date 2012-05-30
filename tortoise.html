@@ -17,10 +17,11 @@
 <body>
   <h1>Live Tortoise Editor and Interpreter!</h1>
   <p>Tortoise <a href="tortoise_test.html">Tests</a> and <a href="tortoise.peg">PEG</a></p>
+  <div id="canvas">
+    <p>Console:</p>
+    <div id="console"></div>
+  </div>
   <div id="editor">
-    <div id="codemirror"></div>
-    <div id="samples">Samples:</div>
-    <textarea id="input" cols="80" rows="10"></textarea><br />
     <div id="controls">
       <input id="check" type="button" value="Check" />
       <input id="run" type="button" value="Run" />
@@ -29,11 +30,8 @@
       <input id="play" type="button" value="Play" />
       <span>Speed:</span><input id="speed" type="number" value="200" min="0" max="1000" step="50" />
     </div>
-    <br />
-    <p>Console:</p>
-    <div id="console"></div>
-  </div>
-  <div id="help">
+    <textarea id="input" cols="80" rows="40"></textarea><br />
+    <div id="samples">Samples:</div>
   </div>
 </body>
 </html>
