@@ -26,7 +26,7 @@ task('deploy', ['clean', 'compile'], function () {
     .cp('node_modules/mocha/mocha.*', 'deploy/')
     .cp('node_modules/chai/chai.js', 'deploy/')
     .cp('CodeMirror2/lib/codemirror.*', 'deploy/')
-    .cp('CodeMirror2/theme/monokai.css', 'deploy/')
+    .cp('CodeMirror2/theme/*.css', 'deploy/')
     .cp('CodeMirror2/mode/scheme/scheme.js', 'deploy/')
     .cp('CodeMirror2/mode/javascript/javascript.js', 'deploy/')
     .cp('raphael/raphael.js', 'deploy/')
