@@ -32,8 +32,21 @@ var nice_env = function (data) {
 $(function() {
   var myCodeMirror = CodeMirror.fromTextArea(document.getElementById('input'), {
     mode:  "javascript",
-    theme: "monokai"
+    //theme: "neat"
   });
+  // load sample buttons
+  var sample_div = $('#samples');
+  for (sample_name in Tortoise.samples) {
+    (function (sample_name) {
+      sample_div.append(
+        $('<input type="button" id="' + sample_name + '" value="' + sample_name +'" />')
+          .click(function () {
+            myCodeMirror.setValue(Tortoise.samples[sample_name][0]);
+          })
+      );
+    }(sample_name));
+  };
+  myCodeMirror.setValue(Tortoise.samples['maze'][0]);
   Tortoise.interpreter.init(680, 100, 400, 400);
   $('#check').click(function() {
     myCodeMirror.save();

@@ -201,6 +201,12 @@ Tortoise.interpreter = (function () {
     // Look at tag to see what to do
     switch(expr.tag) {
       // Simple built-in binary operations
+      case '==':
+        return thunk(evalExpr, expr.left, env, function (v1) {
+          return thunk(evalExpr, expr.right, env, function (v2) {
+            return thunk(cont, v1 === v2);
+          }, xcont);
+        }, xcont);
       case '<':
         return thunk(evalExpr, expr.left, env, function (v1) {
           return thunk(evalExpr, expr.right, env, function (v2) {
@@ -352,7 +358,6 @@ Tortoise.interpreter = (function () {
       } else {
         return thunk(evalStatement, seq[i], env, evalNext, xcont);
       }
-      i += 1;
     });
   };
 

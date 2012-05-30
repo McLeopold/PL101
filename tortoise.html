@@ -5,12 +5,13 @@
   <script src="codemirror.js"></script>
   <script src="raphael.js"></script>
   <link rel="stylesheet" href="codemirror.css" />
-  <link rel="stylesheet" href="monokai.css" />
-  <script src="scheme.js"></script>  
+  <link rel="stylesheet" href="neat.css" />
+  <script src="javascript.js"></script>  
   <link rel="stylesheet" href="tortoise.css" />
   <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
   <script src="tortoise_parser.js"></script>
   <script src="tortoise_interpreter.js"></script>
+  <script src="tortoise_samples.js"></script>
   <script src="tortoise.js"></script>
 </head>
 <body>
@@ -18,82 +19,17 @@
   <p>Tortoise <a href="tortoise_test.html">Tests</a> and <a href="tortoise.peg">PEG</a></p>
   <div id="editor">
     <div id="codemirror"></div>
-    <input id="check" type="button" value="Check" />
-    <input id="run" type="button" value="Run" />
-    <input id="start" type="button" value="Start" />
-    <input id="step" type="button" value="Step" />
-    <input id="play" type="button" value="Play" />
-    <input id="speed" type="number" value="200" min="0" max="1000" step="50" />
+    <div id="samples">Samples:</div>
+    <textarea id="input" cols="80" rows="10"></textarea><br />
+    <div id="controls">
+      <input id="check" type="button" value="Check" />
+      <input id="run" type="button" value="Run" />
+      <input id="start" type="button" value="Start" />
+      <input id="step" type="button" value="Step" />
+      <input id="play" type="button" value="Play" />
+      <span>Speed:</span><input id="speed" type="number" value="200" min="0" max="1000" step="50" />
+    </div>
     <br />
-    <textarea id="input" cols="80" rows="10">
-define wall(size, length) {
-  var gap;
-  gap := floor(random() * length);
-  push();
-  down();
-  forward(size * gap);
-  up();
-  forward(size);
-  down();
-  forward(size * ((length - gap) - 1));
-  up();
-  pop();
-}
-
-define bisect(size, width, height) {
-  if (width > 1) {
-    if (height > 1) {
-      if (width >= height) {
-        var split;
-        split := floor(random() * (width - 1) + 1);
-        bisect(size, split, height);
-        push();
-        right(90);
-        forward(size * split);
-        left(90);
-        wall(size, height);
-        bisect(size, width - split, height);
-        pop();
-      }
-      if (height > width) {
-        var split;
-        split := floor(random() * (height - 1) + 1);
-        bisect(size, width, split);
-        push();
-        forward(size * split);
-        right(90);
-        wall(size, width);
-        left(90);
-        bisect(size, width, height - split);
-        pop();
-      }
-    }
-  }
-}
-
-define maze(size, width, height) {
-  repeat(2) {
-    up();
-    forward(size);
-    down();
-    forward(size * (height - 1));
-    right(90);
-    forward(size * width);
-    right(90);
-  }
-  up();
-  bisect(size, width, height);
-  down();
-}
-
-up();
-backward(190);
-right(90);
-backward(190);
-left(90);
-
-maze(38, 10, 10);
-    </textarea><br />
     <p>Console:</p>
     <div id="console"></div>
   </div>
