@@ -33,7 +33,8 @@ $(function() {
   var state;
   var myCodeMirror = CodeMirror.fromTextArea(document.getElementById('input'), {
     mode:  "javascript",
-    //theme: "neat"
+    theme: "neat",
+    lineNumbers: true
   });
   // load sample buttons
   var sample_div = $('#samples');
@@ -48,7 +49,7 @@ $(function() {
     }(sample_name));
   };
   myCodeMirror.setValue(Tortoise.samples['maze'][0]);
-  Tortoise.interpreter.init(680, 100, 400, 400);
+  Tortoise.interpreter.init(8, 84, 400, 400);
   $('#check').click(function() {
     myCodeMirror.save();
     var user_text = $('#input').val();
@@ -125,4 +126,9 @@ $(function() {
       }
     }, parseInt($('#speed').val(), 10));
   });
+  $(window).resize(function () {
+    $(myCodeMirror.getScrollerElement()).height($('.CodeMirror').height());
+    myCodeMirror.refresh();
+  })
+  $('.CodeMirror').resize();
 });
