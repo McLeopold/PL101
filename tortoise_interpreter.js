@@ -2,20 +2,6 @@ if (typeof module !== 'undefined') {
   var Tortoise = {
     parser: require('./tortoise_parser.js')
   };
-  var Raphael = function () {
-    return {
-      clear: function () {},
-      image: function () {
-        return {
-          attr: function () {},
-          toFront: function () {}
-        };
-      }
-    };
-  };
-  Raphael.rad = function (deg) {
-    return deg % 360 * Math.pi / 180;
-  }
 }
 var parse = Tortoise.parser.parse;
 
@@ -25,6 +11,36 @@ Tortoise.interpreter = (function () {
   function Exception (message) {
     this.message = message;
   }
+
+  var myTurtle;
+  var positions = [];
+  var init_env = {
+    bindings: {
+      forward: function(d) { myTurtle.forward(d); },
+      backward: function(d) { myTurtle.backward(d); },
+      right: function(a) { myTurtle.right(a); },
+      left: function(a) { myTurtle.left(a); },
+      up: function() { myTurtle.up(); },
+      down: function() { myTurtle.down(); },
+      push: function () {
+        positions.push({x: myTurtle.x,
+                        y: myTurtle.y,
+                        angle: myTurtle.angle});
+      },
+      pop: function () {
+        if (positions.length > 0) {
+          var position = positions.pop();
+          myTurtle.x = position.x;
+          myTurtle.y = position.y;
+          myTurtle.angle = position.angle;
+          myTurtle.updateTurtle();
+        }
+      },
+      random: Math.random,
+      floor: Math.floor
+    },
+    outer: {}
+  };
 
   var lookup = function (env, v) {
     if (env.bindings) {
@@ -56,19 +72,12 @@ Tortoise.interpreter = (function () {
     return val;
   };
 
-  var add_env = function (env) {
-    env.outer = {bindings: env.bindings,
-                 outer: env.outer};
-    env.bindings = {};
-  }
-
-  var add_binding = function (env, v, val, pause) {
+  var add_binding = function (env, v, val) {
     if (!env.bindings) {
       env.bindings = {};
       env.outer = {};
     }
     env.bindings[v] = val;
-    val.pause = !!pause;
     return val;
   };
 
@@ -83,14 +92,6 @@ Tortoise.interpreter = (function () {
     return env;
   };
 
-  var thunk = function (f, lst) {
-    return {
-      tag: 'thunk',
-      func: f,
-      args: lst
-    };
-  };
-
   var thunk = function (f) {
     var args = Array.prototype.slice.call(arguments, 1);
     return {
@@ -98,7 +99,7 @@ Tortoise.interpreter = (function () {
       func: f,
       args: args
     };
-};
+  };
 
   var thunkValue = function (x) {
     return {
@@ -107,96 +108,47 @@ Tortoise.interpreter = (function () {
     };
   };
 
-  var trampoline = function (thk) {
-    while (true) {
-      if (thk.tag === 'value') {
-        return thk.val;
-      }
-      if (thk.tag === 'thunk') {
-        thk = thk.func.apply(null, thk.args);
-      }
-    }
+  var start = function (eval, expr, env, cont, xcont) {
+    return {
+      data: eval(expr, env, cont || thunkValue, xcont || thunkValue),
+      done: false
+    };
   };
 
-  var start_expr_step = function (expr, env) {
-    return {
-      data: evalExpr(expr, env, thunkValue),
-      done: false
-    };
+  var step = function (state) {
+    //state.forEach(function (state) {
+      if (state.data.tag === 'value') {
+        state.data = state.data.val;
+        state.done = true;
+      } else if (state.data.tag === 'thunk') {
+        state.data = state.data.func.apply(null, state.data.args);
+      } else {
+        throw new Exception("What?");
+      }
+    //});
   }
 
-  var start_statement_step = function (expr, env) {
-    return {
-      data: evalStatement(expr, env, thunkValue),
-      done: false
-    };
-  }
-
-  var start_statements_step = function (expr, env) {
-    return {
-      data: evalStatements(expr, env, thunkValue),
-      done: false
-    };
-  }
-
-  var step = function (state, count) {
-    //console.log('step', count, state);
-    if (state.data.tag === 'value') {
-      state.data = state.data.val;
-      state.done = true;
-    } else if (state.data.tag === 'thunk') {
-      state.data = state.data.func.apply(null, state.data.args);
-    } else {
-      throw new Exception("What?");
-    }
-  }
-
-  var evalExprFull = function (expr, env) {
-    var count = evalExprFull.count++;
-    //console.log('evalExprFull', expr);
-    var state = start_expr_step(expr, env);
+  var evalFull = function (eval, expr, env, cont, xcont) {
+    var state = start(eval, expr, env, cont, xcont);
     while (!state.done) {
-      step(state, count);
+      step(state);
     }
     return state.data;
   }
-  evalExprFull.count = 0;
-
-  var evalStatementFull = function (stmt, env, cont, xcont) {
-    var count = evalStatementFull.count++;
-    //console.log('evalStatementFull', stmt);
-    var state = start_statement_step(stmt, env);
-    while (!state.done) {
-      step(state, count);
-    }
-    return state.data;
-  }
-  evalStatementFull.count = 0;
-
-  var evalStatementsFull = function (stmt, env, cont, xcont) {
-    var count = evalStatementsFull.count++;
-    //console.log('evalStatementsFull', stmt);
-    var state = start_statements_step(stmt, env);
-    while (!state.done) {
-      step(state, count);
-    }
-    return state.data;
-  }
-  evalStatementsFull.count = 0;
 
   var evalTortoiseString = function (prg, env, cont, xcont) {
     env = env || {};
     var expr = parse(prg);
-    return evalStatementsFull(expr, env);
+    return evalFull(evalStatements, expr, env);
   };
-
 
   // Evaluate a Tortoise expression, return value
   var evalExpr = function (expr, env, cont, xcont) {
     // Numbers evaluate to themselves
     if (typeof expr === 'number') {
       return thunk(cont, expr);
-      return expr;
+    } else if (typeof expr === 'string') {
+      return thunk(cont, expr);
     }
     // Look at tag to see what to do
     switch(expr.tag) {
@@ -309,7 +261,11 @@ Tortoise.interpreter = (function () {
           if (v) {
             return thunk(evalStatements, stmt.body, env, cont, xcont);
           } else {
-            return thunk(cont);
+            if (stmt.else) {
+              return thunk(evalStatements, stmt.else, env, cont, xcont);
+            } else {
+              return thunk(cont);
+            }
           }
         }, xcont);           
       case 'repeat':
@@ -329,6 +285,16 @@ Tortoise.interpreter = (function () {
           env: env,
           args: stmt.args
         }));
+      case 'throw':
+        return thunk(evalExpr, stmt.expr, env, xcont, xcont);
+      case 'try':
+        return thunk(evalStatements, stmt.body, env, cont, function (v) {
+          if (stmt.catch) {
+            return thunk(evalStatements, stmt.catch, env, cont, xcont);
+          } else {
+            return thunk(cont, v);
+          }
+        });
     }
   };
 
@@ -430,56 +396,17 @@ Tortoise.interpreter = (function () {
     this.pen = true;
   };
 
-  var myTurtle;
-  var init_env = { };
-  var positions = [];
-  add_binding(init_env, 'forward', function(d) {
-    myTurtle.forward(d);
-  }, true);
-  add_binding(init_env, 'backward', function(d) {
-    myTurtle.backward(d);
-  }, true);
-  add_binding(init_env, 'right', function(a) {
-    myTurtle.right(a);
-  }, true);
-  add_binding(init_env, 'left', function(a) {
-    myTurtle.left(a);
-  }, true);
-  add_binding(init_env, 'up', function() {
-    myTurtle.up();
-  });
-  add_binding(init_env, 'down', function() {
-    myTurtle.down();
-  });
-  add_binding(init_env, 'push', function () {
-    positions.push({x: myTurtle.x,
-                    y: myTurtle.y,
-                    angle: myTurtle.angle});
-  });
-  add_binding(init_env, 'pop', function () {
-    if (positions.length > 0) {
-      var position = positions.pop();
-      myTurtle.x = position.x;
-      myTurtle.y = position.y;
-      myTurtle.angle = position.angle;
-      myTurtle.updateTurtle();
-    }
-  }, true);
-  add_binding(init_env, 'random', function () {
-    return Math.random();
-  });
-  add_binding(init_env, 'floor', function (n) {
-    return Math.floor(n);
-  });
-
   var obj = {
-    evalExpr: evalExprFull,
-    evalStatement: evalStatementFull,
-    evalStatements: evalStatementsFull,
-    startStatements: start_statements_step,
+    evalFull: evalFull,
+    evalExpr: evalExpr,
+    evalStatement: evalStatement,
+    evalStatements: evalStatements,
+    start: start,
     step: step,
     lookup: lookup,
-    evalTortoise: evalStatementsFull,
+    evalTortoise: function (expr, env) {
+      return evalFull(evalStatements, expr, env);
+    },
     evalTortoiseString: evalTortoiseString,
     myTortoise: myTurtle
   };
