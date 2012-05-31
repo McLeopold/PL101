@@ -14,6 +14,10 @@ number
     / "-" chars:[0-9]+ frac:number_frac?
         { return -parseFloat(chars.join('') + frac); }
 
+string
+    = '"' chars:[^"]* '"'
+      { return chars.join(''); }
+
 validfirstchar
     = [a-zA-Z_]
 
@@ -27,6 +31,10 @@ identifier
 statement
     = "if" ws "(" ws expr:expression ws ")" ws 
         "{" ws body:statements ws "}" ws
+        "else" ws "{" ws elsebody:statements ws "}" ws
+        { return { tag:"if", expr:expr, body:body, else:elsebody }; }
+    / "if" ws "(" ws expr:expression ws ")" ws 
+        "{" ws body:statements ws "}" ws
         { return { tag:"if", expr:expr, body:body }; }
     / "define " ws v:identifier ws "(" ws ")" ws 
         "{" ws body:statements ws "}" ws
@@ -39,6 +47,15 @@ statement
         { return { tag:"repeat", expr:expr, body:body }; }
     / "var " ws v:identifier ws ";" ws
         { return { tag:"var", name:v }; }
+    / "throw" ws expr:expression? ws ";" ws
+        { return { tag:"throw", expr: expr || 'Exception!' }; }
+    / "try" ws
+        "{" ws body:statements ws "}" ws
+        "catch" ws "{" ws catchbody:statements ws "}" ws
+        { return { tag:"try", body:body, catch:catchbody }; }
+    / "try" ws
+        "{" ws body:statements ws "}" ws
+        { return { tag:"try", body:body }; }
     / v:identifier ws ":=" ws expr:expression ws ";" ws
         { return { tag:":=", left:v, right:expr }; }
     / expr:expression ws ";" ws
@@ -74,6 +91,7 @@ multiplicative
 
 primary
     = number
+    / string
     / v:identifier "(" ws ")"
         { return {tag:"call", name:v, args:[]}; }
     / v:identifier "(" ws args:arglist ws ")"

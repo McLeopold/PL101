@@ -83,6 +83,7 @@ $(function() {
 //    catch(e) {
 //      log_console('Parse Error: ' + e);
 //    }
+    Tortoise.interpreter.myTortoise.hideTurtle();
   });
   var draw_start = function() {
     Tortoise.interpreter.myTortoise.clear();
@@ -91,7 +92,7 @@ $(function() {
     $('#console').html('');
     var parsed = Tortoise.parser.parse(user_text);
     var env = {};
-    state = Tortoise.interpreter.startStatements(parsed, env);
+    state = Tortoise.interpreter.start(Tortoise.interpreter.evalStatements, parsed, env);
   }
   var is_drawing = function (state) {
     return (state.data.args &&

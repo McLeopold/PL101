@@ -75,7 +75,17 @@ Scheem.interpreter = (function () {
     '//': function (x, y) { return Math.floor(x / y); },
     '%': function (x, y) { return x % y; },
     // addition / subtraction
-    '+': function (x, y) { return x + y; },
+    '+': function (x, y) {
+      if (arguments.length === 2 )
+        return x + y;
+      else {
+        var result = 0;
+        for (var i = 0, ilen = arguments.length; i < ilen; ++i) {
+          result += arguments[i];
+        }
+        return result;
+      }
+    },
     '++': function (x, y) { return x + y; },
     '-': function (x, y) { return x - y; },
     // bitshift
