@@ -1,0 +1,74 @@
+/*
+Slow parse
+
+expression:
+  (1+2*3)*(4+5*6)
+
+output:
+  {
+     "expr": 238,
+     "matches": {
+        "integer": 7,
+        "primary": 8,
+        "multiplicative": 8,
+        "additive": 5,
+        "start": 0
+     },
+     "total": 28
+  }
+*/
+
+{
+  var matches = {
+    integer: 0,
+    primary: 0,
+    multiplicative: 0,
+    additive: 0,
+    start: 0
+  };
+}
+
+start
+  = expr:additive
+    {
+      matches['integer']++;
+      return {
+        expr:expr,
+        matches:matches,
+        total: matches['integer'] +
+               matches['primary'] +
+               matches['multiplicative'] +
+               matches['additive'] +
+               matches['start']
+      };
+    }
+
+additive
+  = head:multiplicative tail:("+" right:additive)*
+    { matches['additive']++;
+      var result = head;
+      for (var i = 0, ilen = tail.length; i < ilen; ++i) {
+        result += tail[i][1];
+      }
+      return result;
+    }
+
+multiplicative
+  = head:primary tail:("*" right:multiplicative)*
+    { matches['multiplicative']++;
+      var result = head;
+      for (var i = 0, ilen = tail.length; i < ilen; ++i) {
+        result *= tail[i][1];
+      }
+      return result;
+    }
+
+primary
+  = i:integer
+    { matches['primary']++; return i; }
+  / "(" additive:additive ")"
+    { matches['primary']++; return additive; }
+
+integer "integer"
+  = digits:[0-9]+
+    { matches['integer']++; return parseInt(digits.join(""), 10); }
