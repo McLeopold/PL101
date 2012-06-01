@@ -6,13 +6,13 @@ expression:
 
 output:
   {
-     "expr": 238,
+     "expr": 237,
      "matches": {
         "integer": 7,
         "primary": 8,
         "multiplicative": 8,
         "additive": 5,
-        "start": 0
+        "start": 1
      },
      "total": 28
   }
@@ -31,7 +31,7 @@ output:
 start
   = expr:additive
     {
-      matches['integer']++;
+      matches['start']++;
       return {
         expr:expr,
         matches:matches,

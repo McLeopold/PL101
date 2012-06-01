@@ -8,11 +8,11 @@ output:
   {
      "expr": 238,
      "matches": {
-        "integer": 49,
+        "integer": 48,
         "primary": 54,
         "multiplicative": 34,
         "additive": 13,
-        "start": 0
+        "start": 1
      },
      "total": 150
   }
@@ -31,7 +31,7 @@ output:
 start
   = expr:additive
     {
-      matches['integer']++;
+      matches['start']++;
       return {
         expr:expr,
         matches:matches,
