@@ -261,7 +261,8 @@ suite('parse', function() {
 
 suite('evalExpression', function () {
     var env = { bindings: 
-        {x: 5, y: 24, f: function(a) { return 3 * a + 1; } },
+        { a: ['a', 'b', ['c', 'd']], x: 5, y: 24,
+          f: function(a) { return 3 * a + 1; } },
         outer: { bindings: {x: 3, z: 101}, outer: { } } };
     test('number', function () {
         var expr = parse('5', 'expression');
@@ -306,6 +307,14 @@ suite('evalExpression', function () {
     test('f(f(3)+1)*2', function () {
         var expr = parse('f(f(3)+1)*2', 'expression');
         assert.deepEqual(evalFull(evalExpr, expr, env), 68);
+    });
+    test('array index a[0]', function () {
+      var expr = parse('a[0]', 'expression');
+      assert.deepEqual(evalFull(evalExpr, expr, env), 'a');
+    });
+    test('array index a[2][1]', function () {
+      var expr = parse('a[2][1]', 'expression');
+      assert.deepEqual(evalFull(evalExpr, expr, env), 'd');
     });
 });
 

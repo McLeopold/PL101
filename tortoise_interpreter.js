@@ -12,32 +12,33 @@ Tortoise.interpreter = (function () {
     this.message = message;
   }
 
-  var myTurtle;
   var positions = [];
   var init_env = {
     bindings: {
-      forward: function(d) { myTurtle.forward(d); },
-      backward: function(d) { myTurtle.backward(d); },
-      right: function(a) { myTurtle.right(a); },
-      left: function(a) { myTurtle.left(a); },
-      up: function() { myTurtle.up(); },
-      down: function() { myTurtle.down(); },
+      forward: function(d) { this.forward(d); },
+      backward: function(d) { this.backward(d); },
+      right: function(a) { this.right(a); },
+      left: function(a) { this.left(a); },
+      up: function() { this.up(); },
+      down: function() { this.down(); },
       push: function () {
-        positions.push({x: myTurtle.x,
-                        y: myTurtle.y,
-                        angle: myTurtle.angle});
+        positions.push({x: this.x,
+                        y: this.y,
+                        angle: this.angle});
       },
       pop: function () {
         if (positions.length > 0) {
           var position = positions.pop();
-          myTurtle.x = position.x;
-          myTurtle.y = position.y;
-          myTurtle.angle = position.angle;
-          myTurtle.updateTurtle();
+          this.x = position.x;
+          this.y = position.y;
+          this.angle = position.angle;
+          this.updateTurtle();
         }
       },
       random: Math.random,
-      floor: Math.floor
+      floor: Math.floor,
+      width: function (d) { this.setWidth(d); },
+      color: function (r, g, b) { this.setColor(r, g, b); }
     },
     outer: {}
   };
@@ -65,6 +66,24 @@ Tortoise.interpreter = (function () {
         env.bindings[v] = val;
       } else {
         update(env.outer, v, val);
+      }
+    } else {
+      throw new Error('variable ' + v + ' not defined');
+    }
+    return val;
+  };
+
+  var update_index = function (env, v, index, val) {
+    //console.log('update', env, v, val);
+    if (env.bindings) {
+      if (env.bindings.hasOwnProperty(v)) {
+        var value = env.bindings[v];
+        for (var i = 0, ilen = index.length - 1; i < ilen; ++i) {
+          value = value[index[i]];
+        }
+        value[index[index.length - 1]] = val;
+      } else {
+        update_index(env.outer, v, index, val);
       }
     } else {
       throw new Error('variable ' + v + ' not defined');
@@ -108,29 +127,51 @@ Tortoise.interpreter = (function () {
     };
   };
 
+  var myTurtles;
   var start = function (eval, expr, env, cont, xcont) {
-    return {
-      data: eval(expr, env, cont || thunkValue, xcont || thunkValue),
-      done: false
-    };
+    var states = [];
+    spawn(states, eval, expr, env, cont, xcont, myTurtles && myTurtles.turtles[0]);
+    return states;
   };
 
-  var step = function (state) {
-    //state.forEach(function (state) {
-      if (state.data.tag === 'value') {
-        state.data = state.data.val;
-        state.done = true;
-      } else if (state.data.tag === 'thunk') {
-        state.data = state.data.func.apply(null, state.data.args);
-      } else {
-        throw new Exception("What?");
-      }
-    //});
+  var spawn = function (states, eval, expr, env, cont, xcont, turtle) {
+    var state = {};
+    state.data = eval.call(state, expr, env, cont || thunkValue, xcont || thunkValue);
+    state.done = false;
+    state.turtle = turtle;
+    state.turtles = myTurtles;
+    state.states = states;
+    states.push(state);
+    return state;
   }
+
+  var step = function (states) {
+    states.forEach(function (state) {
+      if (!state.done) {
+        if (state.data.tag === 'value') {
+          state.data = state.data.val;
+          state.done = true;
+        } else if (state.data.tag === 'thunk') {
+          state.data = state.data.func.apply(state, state.data.args);
+        } else {
+          throw new Exception("What?");
+        }
+      }
+    });
+  }
+
+  var finished = function (states) {
+    for (var i = 0, ilen = states.length; i < ilen; ++i) {
+      if (!states[i].done) {
+        return false;
+      }
+    }
+    return true;
+  };
 
   var evalFull = function (eval, expr, env, cont, xcont) {
     var state = start(eval, expr, env, cont, xcont);
-    while (!state.done) {
+    while (!finished(state)) {
       step(state);
     }
     return state.data;
@@ -146,68 +187,109 @@ Tortoise.interpreter = (function () {
   var evalExpr = function (expr, env, cont, xcont) {
     // Numbers evaluate to themselves
     if (typeof expr === 'number') {
-      return thunk(cont, expr);
+      return thunk.call(this, cont, expr);
     } else if (typeof expr === 'string') {
-      return thunk(cont, expr);
+      return thunk.call(this, cont, expr);
+    } else if (expr instanceof Array) {
+      var i = -1
+        , ilen = expr.length
+        , values = []
+      ;
+      return function nextArg(r) {
+        if (i >= 0) {
+          values[i] = r;
+        }
+        if (++i < ilen) {
+          return thunk.call(this, evalExpr, expr[i], env, nextArg, xcont);
+        } else {
+          return thunk.call(this, cont, values);
+        }
+      }.call(this);
     }
     // Look at tag to see what to do
     switch(expr.tag) {
       // Simple built-in binary operations
+      case '&&':
+        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
+          if (v1) {
+            return thunk.call(this, evalExpr, expr.right, env, function (v2) {
+              return thunk.call(this, cont, v2);
+            }, xcont);
+          } else {
+            return thunk.call(this, cont, v1);
+          }
+        }, xcont);
+      case '||':
+        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
+          if (v1) {
+            return thunk.call(this, cont, v1);
+          } else {
+            return thunk.call(this, evalExpr, expr.right, env, function (v2) {
+              return thunk.call(this, cont, v2);
+            }, xcont);
+          }
+        }, xcont);
       case '==':
-        return thunk(evalExpr, expr.left, env, function (v1) {
-          return thunk(evalExpr, expr.right, env, function (v2) {
-            return thunk(cont, v1 === v2);
+        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
+            return thunk.call(this, cont, v1 === v2);
+          }, xcont);
+        }, xcont);
+      case '!=':
+        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
+            return thunk.call(this, cont, v1 !== v2);
           }, xcont);
         }, xcont);
       case '<':
-        return thunk(evalExpr, expr.left, env, function (v1) {
-          return thunk(evalExpr, expr.right, env, function (v2) {
-            return thunk(cont, v1 < v2);
+        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
+            return thunk.call(this, cont, v1 < v2);
           }, xcont);
         }, xcont);
       case '>':
-        return thunk(evalExpr, expr.left, env, function (v1) {
-          return thunk(evalExpr, expr.right, env, function (v2) {
-            return thunk(cont, v1 > v2);
+        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
+            return thunk.call(this, cont, v1 > v2);
           }, xcont);
         }, xcont);
       case '<=':
-        return thunk(evalExpr, expr.left, env, function (v1) {
-          return thunk(evalExpr, expr.right, env, function (v2) {
-            return thunk(cont, v1 <= v2);
+        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
+            return thunk.call(this, cont, v1 <= v2);
           }, xcont);
         }, xcont);
       case '>=':
-        return thunk(evalExpr, expr.left, env, function (v1) {
-          return thunk(evalExpr, expr.right, env, function (v2) {
-            return thunk(cont, v1 >= v2);
+        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
+            return thunk.call(this, cont, v1 >= v2);
           }, xcont);
         }, xcont);
       case '+':
-        return thunk(evalExpr, expr.left, env, function (v1) {
-          return thunk(evalExpr, expr.right, env, function (v2) {
-            return thunk(cont, v1 + v2);
+        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
+            return thunk.call(this, cont, v1 + v2);
           }, xcont);
         }, xcont);
       case '-':
-        return thunk(evalExpr, expr.left, env, function (v1) {
-          return thunk(evalExpr, expr.right, env, function (v2) {
-            return thunk(cont, v1 - v2);
+        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
+            return thunk.call(this, cont, v1 - v2);
           }, xcont);
         }, xcont);
       case '*':
-        return thunk(evalExpr, expr.left, env, function (v1) {
-          return thunk(evalExpr, expr.right, env, function (v2) {
-            return thunk(cont, v1 * v2);
+        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
+            return thunk.call(this, cont, v1 * v2);
           }, xcont);
         }, xcont);
       case '/':
-        return thunk(evalExpr, expr.left, env, function (v1) {
-          return thunk(evalExpr, expr.right, env, function (v2) {
+        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
             if (v2 === 0)
-              return thunk(xcont, 'Exception');
+              return thunk.call(this, xcont, 'Exception');
             else
-              return thunk(cont, v1 / v2);
+              return thunk.call(this, cont, v1 / v2);
           }, xcont);
         }, xcont);
       case 'call':
@@ -221,19 +303,34 @@ Tortoise.interpreter = (function () {
             eval_args[i] = r;
           }
           if (++i < ilen) {
-            return thunk(evalExpr, expr.args[i], env, nextArg, xcont);
+            return thunk.call(this, evalExpr, expr.args[i], env, nextArg, xcont);
           } else {
             if (typeof func === 'function') {
-              return thunk(cont, func.apply(null, eval_args));
+              return thunk.call(this, cont, func.apply(this.turtle, eval_args));
             } else {
-              return thunk(evalStatements, func.body, 
+              return thunk.call(this, evalStatements, func.body, 
                 add_bindings({bindings: {}, outer: func.env}, func.args, eval_args),
                 cont, xcont);
             }
           }
-        }();
+        }.call(this);
+      case 'index':
+        var i = -1
+          , ilen = expr.index.length
+          , value = lookup(env, expr.name)
+        ;
+        return function nextArg(r) {
+          if (i >= 0) {
+            value = value[r];
+          }
+          if (++i < ilen) {
+            return thunk.call(this, evalExpr, expr.index[i], env, nextArg, xcont);
+          } else {
+            return thunk.call(this, cont, value);
+          }
+        }.call(this);
       case 'ident':
-        return thunk(cont, lookup(env, expr.name));
+        return thunk.call(this, cont, lookup(env, expr.name));
 
     }
   };
@@ -246,55 +343,78 @@ Tortoise.interpreter = (function () {
       // A single expression
       case 'ignore':
         // Just evaluate expression
-        return thunk(evalExpr, stmt.body, env, cont, xcont);
+        return thunk.call(this, evalExpr, stmt.body, env, cont, xcont);
       // Declare new variable
       case 'var':
         // New variable gets default value of 0
-        return thunk(cont, add_binding(env, stmt.name, 0));
+        return thunk.call(this, cont, add_binding(env, stmt.name, 0));
       case ':=':
         // Evaluate right hand side
-        return thunk(evalExpr, stmt.right, env, function (v) {
-          return thunk(cont, update(env, stmt.left, v));
+        return thunk.call(this, evalExpr, stmt.right, env, function (v) {
+          return thunk.call(this, cont, update(env, stmt.left, v));
         }, xcont);
+      case '[]=':
+        // Evaluate right hand side
+        var i = -1
+          , ilen = stmt.index.length
+          , values = []
+        ;
+        return function nextArg(r) {
+          if (i >= 0) {
+            values[i] = r;
+          }
+          if (++i < ilen) {
+            return thunk.call(this, evalExpr, stmt.index[i], env, nextArg, xcont);
+          } else {
+            return thunk.call(this, evalExpr, stmt.right, env, function (v) {
+              return thunk.call(this, cont, update_index(env, stmt.left, values, v));
+            }, xcont);
+          }
+        }.call(this);
+
       case 'if':
-        return thunk(evalExpr, stmt.expr, env, function (v) {
+        return thunk.call(this, evalExpr, stmt.expr, env, function (v) {
           if (v) {
-            return thunk(evalStatements, stmt.body, env, cont, xcont);
+            return thunk.call(this, evalStatements, stmt.body, env, cont, xcont);
           } else {
             if (stmt.else) {
-              return thunk(evalStatements, stmt.else, env, cont, xcont);
+              return thunk.call(this, evalStatements, stmt.else, env, cont, xcont);
             } else {
-              return thunk(cont);
+              return thunk.call(this, cont);
             }
           }
         }, xcont);           
       case 'repeat':
-        return thunk(evalExpr, stmt.expr, env, function (count) {
+        return thunk.call(this, evalExpr, stmt.expr, env, function (count) {
           var i = -1;
           return function repeatStmt (r) {
             if (++i < count) {
-              return thunk(evalStatements, stmt.body, env, repeatStmt, xcont);
+              return thunk.call(this, evalStatements, stmt.body, env, repeatStmt, xcont);
             } else {
-              return thunk(cont, r);
+              return thunk.call(this, cont, r);
             }
           }();
         }, xcont);
       case 'define':
-        return thunk(cont, add_binding(env, stmt.name, {
+        return thunk.call(this, cont, add_binding(env, stmt.name, {
           body: stmt.body,
           env: env,
           args: stmt.args
         }));
       case 'throw':
-        return thunk(evalExpr, stmt.expr, env, xcont, xcont);
+        return thunk.call(this, evalExpr, stmt.expr, env, xcont, xcont);
       case 'try':
-        return thunk(evalStatements, stmt.body, env, cont, function (v) {
+        return thunk.call(this, evalStatements, stmt.body, env, cont, function (v) {
           if (stmt.catch) {
-            return thunk(evalStatements, stmt.catch, env, cont, xcont);
+            return thunk.call(this, evalStatements, stmt.catch, env, cont, xcont);
           } else {
-            return thunk(cont, v);
+            return thunk.call(this, cont, v);
           }
         });
+      case 'hatch':
+        var new_turtle = this.turtles.clone(this.turtle);
+        spawn(this.states, evalStatements, stmt.body, env, null, null, new_turtle);
+        return thunk.call(this, cont, 0); // TODO: return thread indentifier
     }
   };
 
@@ -304,24 +424,78 @@ Tortoise.interpreter = (function () {
     ;
     return function evalNext (r) {
       if (++i < ilen) {
-        return thunk(evalStatement, seq[i], env, evalNext, xcont);
+        return thunk.call(this, evalStatement, seq[i], env, evalNext, xcont);
       } else {
-        return thunk(cont, r);
+        return thunk.call(this, cont, r);
       }
-    }();
+    }.call(this);
   };
 
-  var Turtle = function (x, y, w, h) {
+  var Turtles = function (x, y, w, h) {
     this.paper = Raphael(x, y, w, h);
     this.originx = w / 2;
     this.originy = h / 2;
+    this.turtles = [new Turtle(this)];
+  }
+  Turtles.prototype.clone = function (turtle) {
+    var new_turtle = turtle.clone();
+    this.turtles.push(new_turtle);
+    return new_turtle;
+  }
+  Turtles.prototype.clear = function () {
+    this.paper.clear();
+    this.turtles = [new Turtle(this)];
+    this.turtles[0].clear();
+    /*
+    for (var i = 0, ilen = this.turtles.length; i < ilen; ++i) {
+      this.turtles[i].clear();
+    }
+    */
+  }
+  Turtles.prototype.hide = function () {
+    for (var i = 0, ilen = this.turtles.length; i < ilen; ++i) {
+      this.turtles[i].hide();
+    }
+  }
+  Turtles.prototype.setSpeed = function (speed) {
+    for (var i = 0, ilen = this.turtles.length; i < ilen; ++i) {
+      this.turtles[i].setSpeed(speed);
+    }
+  }
+  var Turtle = function (turtles) {
+    this.paper = turtles.paper;
+    this.originx = turtles.originx;
+    this.originy = turtles.originy;
+  };
+  Turtle.prototype.clone = function () {
+    var t = new Turtle({paper:this.paper, originx: this.originx, originy: this.originy});
+    t.x = this.x;
+    t.y = this.y;
+    t.angle = this.angle;
+    t.pen = this.pen;
+    t.stroke = {
+      "stroke-width": this.stroke["stroke-width"],
+      "stroke-linecap": this.stroke["stroke-linecap"],
+      "stroke-linejoin": this.stroke["stroke-linejoin"],
+      "stroke": this.stroke["stroke"],
+      "stroke-opacity": this.stroke["stroke-opacity"]
+    }
+    t.turtleimg = undefined;
+    t.updateTurtle();
+    return t;
   };
   Turtle.prototype.clear = function () {
-    this.paper.clear();
     this.x = this.originx;
     this.y = this.originy;
     this.angle = 90;
     this.pen = true;
+    this.stroke = {
+      "stroke-width": 4,
+      "stroke-linecap": 'round',
+      "stroke-linejoin": 'round',
+      "stroke": Raphael.rgb(0,0,0),
+      "stroke-opacity": 1
+    }
     this.turtleimg = undefined;
     this.updateTurtle();
   };
@@ -347,17 +521,25 @@ Tortoise.interpreter = (function () {
     );
   };
 
-  Turtle.prototype.hideTurtle = function () {
+  Turtle.prototype.hide = function () {
     this.turtleimg.remove();
   };
 
   Turtle.prototype.drawTo = function (x, y) {
     var x1 = this.x;
     var y1 = this.y;
-    var params = { "stroke-width": 4 };
+    var params = this.stroke; // { "stroke-width": 4 };
     var path = this.paper.path(Raphael.format("M{0},{1}L{2},{3}",
         x1, y1, x, y)).attr(params);
   };
+
+  Turtle.prototype.setColor = function (r, g, b) {
+    this.stroke.stroke = Raphael.rgb(r, g, b);
+  }
+
+  Turtle.prototype.setWidth = function (width) {
+    this.stroke['stroke-width'] = width;
+  }
 
   Turtle.prototype.forward = function (d) {
     var newx = this.x + Math.cos(Raphael.rad(this.angle)) * d;
@@ -404,16 +586,17 @@ Tortoise.interpreter = (function () {
     start: start,
     step: step,
     lookup: lookup,
+    finished: finished,
     evalTortoise: function (expr, env) {
       return evalFull(evalStatements, expr, env);
     },
     evalTortoiseString: evalTortoiseString,
-    myTortoise: myTurtle
+    myTortoises: myTurtles
   };
   var init = function (top, left, width, height) {
     $(function () {
-      myTurtle = new Turtle(top, left, width, height);
-      obj.myTortoise = myTurtle;
+      myTurtles = new Turtles(top, left, width, height);
+      obj.myTortoises = myTurtles;
     });
   };
   obj.init = init;
