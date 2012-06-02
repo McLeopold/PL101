@@ -48,7 +48,7 @@ $(function() {
       );
     }(sample_name));
   };
-  myCodeMirror.setValue(Tortoise.samples['simple'][0]);
+  myCodeMirror.setValue(Tortoise.samples['multi-maze'][0]);
   Tortoise.interpreter.init(8, 84, 400, 400);
   $('#check').click(function() {
     myCodeMirror.save();
