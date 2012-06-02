@@ -15,6 +15,19 @@ Tortoise.samples = (function () {
       '  }',
       '}'
     ], undefined],
+    'multi-rose': [[
+      'repeat(18) {',
+      '  right(20);',
+      '  hatch {',
+      '    color(floor(random() * 256), floor(random() * 256), floor(random() * 256));',
+      '    width(floor(random() * 7));',
+      '    repeat(36) {',
+      '      forward(15);',
+      '      right(10);',
+      '    }',
+      '  }',
+      '}'
+    ], undefined],
     'square': [[
       'define square(x) {',
       '  repeat(4) {',
