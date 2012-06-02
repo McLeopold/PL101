@@ -151,6 +151,7 @@ Tortoise.interpreter = (function () {
         if (state.data.tag === 'value') {
           state.data = state.data.val;
           state.done = true;
+          state.turtle.hide();
         } else if (state.data.tag === 'thunk') {
           state.data = state.data.func.apply(state, state.data.args);
         } else {
