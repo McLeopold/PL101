@@ -67,20 +67,19 @@ Operators - these are all infix
     ||
 
 Keywords
-  in
-  do
-  fn
+  in - operator
+  do - like begin in scheme, return last statement
+  fn - function / lambda
   with - python context manager
-  else
-  finally
-  return
-  continue
-  break - multiples allowed
-  loop
-  while
-  until
-  del
+  loop {} () or loop () {} or loop {}
   case - switch
+  else - applies to loop, try, 
+  finally - applies to loop, try, case
+  jump statements
+    return
+    continue
+    break - multiples allowed
+  del
   
 Literals
 

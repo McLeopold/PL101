@@ -12,6 +12,7 @@ task('clean', [], function () {
 task('compile', [], function () {
   exec([], {verbose: true}, function () { complete(); })
     .run('jake -f scheem/Jakefile.js -C scheem')
+    .run('jake -f tscheem/Jakefile.js -C tscheem')
     .run('jake -f tortoise/Jakefile.js -C tortoise')
   ;
 }, true);
@@ -20,6 +21,8 @@ task('deploy', ['clean', 'compile'], function () {
   exec([], {verbose: true}, function () { complete(); })
     .cp('scheem/scheem*', 'deploy/')
     .cp('scheem/test/*', 'deploy/')
+    .cp('tscheem/tscheem*', 'deploy/')
+    .cp('tscheem/test/*', 'deploy/')
     .cp('tortoise/tortoise*', 'deploy/')
     .cp('tortoise/test/*', 'deploy/')
     .cp('web/*', 'deploy/', {recursive: true})

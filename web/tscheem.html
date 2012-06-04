@@ -1,0 +1,100 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>TScheem</title>
+  <script src="codemirror.js"></script>
+  <link rel="stylesheet" href="codemirror.css" />
+  <link rel="stylesheet" href="monokai.css" />
+  <script src="scheme.js"></script>  
+  <link rel="stylesheet" href="tscheem.css" />
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+  <script src="tscheem_parser.js"></script>
+  <script src="tscheem_interpreter.js"></script>
+  <script src="tscheem.js"></script>
+</head>
+<body>
+  <h1>Live TScheem Editor and Interpreter!</h1>
+  <p>TScheem <a href="tscheem_test.html">Tests</a> and <a href="tscheem.peg">PEG</a></p>
+  <div id="editor">
+    <div id="codemirror"></div>
+    <input id="parse" type="button" value="Parse" />
+    <input id="typecheck" type="button" value="Type Check" />
+    <input id="run" type="button" value="Run" /><br />
+    <textarea id="input" cols="80" rows="5">
+(begin
+ (define factorial (number -> number)
+   (lambda-one n number
+               (if ((= n) 0)
+                   1
+                   ((* n) (factorial ((- n) 1))))))
+ (factorial 5))
+    </textarea><br />
+    <p>Console:</p>
+    <div id="console"></div>
+  </div>
+  <div id="help">
+    <p>TScheem Syntax</p>
+    <ul>
+      <li>Math
+        <ul>
+          <li>(<strong>+</strong> <em>expr expr</em>)
+            <p></p>
+          </li>
+          <li>(<strong>-</strong> <em>expr expr</em>)
+            <p></p>
+          </li>
+          <li>(<strong>*</strong> <em>expr expr</em>)
+            <p></p>
+          </li>
+          <li>(<strong>/</strong> <em>expr expr</em>)
+            <p></p>
+          </li>
+        </ul>
+      </li>
+      <li>Variables
+        <ul>
+          <li>(<strong>define</strong> <em>symbol expr</em>)
+            <p></p>
+          </li>
+          <li>(<strong>set!</strong> <em>symbol expr</em>)
+            <p></p>
+          </li>
+        </ul>
+      </li>
+      <li>Conditions
+        <ul>
+          <li>(<strong>=</strong> <em>expr1 expr2</em>)
+            <p></p>
+          </li>
+          <li>(<strong>&lt;</strong> <em>expr1 expr2</em>)
+            <p></p>
+          </li>
+        </ul>
+      </li>
+      <li>Control Flow
+        <ul>
+          <li>(<strong>if</strong> <em>condition true-expr false-expr</em>)
+            <p></p>
+          </li>
+          <li>(<strong>begin</strong> <em>list</em>)
+            <p></p>
+          </li>
+        </ul>
+      </li>
+      <li>List Processing
+        <ul>
+          <li>(<strong>cons</strong> <em>expr list</em>)
+            <p></p>
+          </li>
+          <li>(<strong>car</strong> <em>list</em>)
+            <p></p>
+          </li>
+          <li>(<strong>cdr</strong> <em>list</em>)
+            <p></p>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</body>
+</html>
