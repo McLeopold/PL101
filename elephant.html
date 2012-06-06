@@ -21,16 +21,12 @@
       <input id="typecheck" type="button" value="Type Check" />
       <input id="run" type="button" value="Run" /><br />
     </div>
-    <textarea id="input" cols="80" rows="5">
-accum := fn (n) {
-  fn (i) {
-    n += i
+    <textarea id="input" cols="80" rows="5">qsort := fn (ls list) {
+  if (len(ls) == 0) {
   }
+  len(ls)
 }
-acct := accum(7)
-acct(5)
-alert(acct(3))
-    </textarea><br />
+qsort([1 2 3])</textarea><br />
     <p>Console:</p>
     <div id="console"></div>
   </div>

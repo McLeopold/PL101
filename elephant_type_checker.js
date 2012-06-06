@@ -88,19 +88,21 @@ Elephant.type_checker = (function () {
   var get_env = function (env) {
     var initial_env = {
       types: {
-        '+': arrowtype(basetype('number'), arrowtype(basetype('number'), basetype('number'))),
-        '-': arrowtype(basetype('number'), arrowtype(basetype('number'), basetype('number'))),
-        '*': arrowtype(basetype('number'), arrowtype(basetype('number'), basetype('number'))),
-        '/': arrowtype(basetype('number'), arrowtype(basetype('number'), basetype('number'))),
-        '=': arrowtype(basetype('number'), arrowtype(basetype('number'), basetype('boolean'))),
-        '>': arrowtype(basetype('number'), arrowtype(basetype('number'), basetype('boolean'))),
-        '<': arrowtype(basetype('number'), arrowtype(basetype('number'), basetype('boolean'))),
-        '<=>': arrowtype(basetype('number'), arrowtype(basetype('number'), basetype('number'))),
+        //
+        '+': arrow2type('number', 'number', 'number'),
+        '-': arrow2type('number', 'number', 'number'),
+        '*': arrow2type('number', 'number', 'number'),
+        '/': arrow2type('number', 'number', 'number'),
+        '==': arrow2type('number', 'number', 'boolean'),
+        '>': arrow2type('number', 'number', 'boolean'),
+        '<': arrow2type('number', 'number', 'boolean'),
+        '<=>': arrow2type('number', 'number', 'number'),
         '+=': arrow2type('number', 'number', 'number'),
+        'len': arrow1type('list', 'number'),
         'random': arrowtype(basetype('unit'), basetype('number')),
         '#t': basetype('boolean'),
         '#f': basetype('boolean'),
-        'alert': arrowtype(basetype('variant'), basetype('variant'))
+        'alert': arrow1type('variant', 'variant')
       },
       outer: {}
     };
@@ -152,6 +154,9 @@ Elephant.type_checker = (function () {
   var arrowtype = function (left, right) {
     return {tag:'arrowtype', left: left, right: right};
   }
+  var arrow1type = function (a, b) {
+    return {tag:'arrowtype', left: basetype(a), right:basetype(b)};
+  }
   var arrow2type = function (a, b, c) {
     return {tag:'arrowtype', left: basetype(a), right:{tag:'arrowtype', left:basetype(b), right:basetype(c)}};
   }
@@ -159,7 +164,7 @@ Elephant.type_checker = (function () {
   var sameType = function (a, b) {
       if (a.tag === 'basetype')
           return a.tag === b.tag &&
-                (a.name === 'variant' || b.name === 'variant' || a.name === b.name);
+                (a.name === 'variant' || a.name === b.name);
       else if (a.tag === 'arrowtype')
           return a.tag === b.tag && sameType(a.left, b.left) && sameType(a.right, b.right);
   };
@@ -173,6 +178,9 @@ Elephant.type_checker = (function () {
   }
 
   var typeExpr = function (expr, context) {
+    if (typeof expr === 'undefined') {
+      throw new Error('invalid form');
+    }
     if (typeof expr === 'number' || typeof expr === 'boolean') {
       return basetype(typeof expr);
     }
@@ -182,8 +190,8 @@ Elephant.type_checker = (function () {
     if (typeof expr === 'object' && !(expr instanceof Array)) {
       return lookup(context, expr.name);
     }
-    if (typeof expr === 'undefined') {
-      throw new Error('invalid form');
+    if (expr.length === 0) {
+      return basetype('unit');
     }
     switch (expr[0]) {
       case 'if':
@@ -213,11 +221,13 @@ Elephant.type_checker = (function () {
           result = typeExpr(expr[i], context);
         }
         return result;
+      case 'list':
+        return basetype('list');
       default:
         var A = expr[0];
         var A_type = typeExpr(A, context);
         if (expr.length === 1) {
-          A_type = A_type.right;
+          A_type = A_type.right || A_type;
         } else {
           for (var i = 1, ilen = expr.length; i < ilen; ++i) {
             var B = expr[i];
