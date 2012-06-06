@@ -1,13 +1,13 @@
 start = expression
 
-expression = WS? e:(type / quote / integer / atom / atomlist) WS?
+expression = WS? e:(quote / integer / atom / atomlist) WS?
   { return e; }
 
 atomlist = OpenChar es:expression* CloseChar
   { return es; }
 
-atom = chars:AtomChar+
-  { return chars.join(''); }
+atom = chars:AtomChar+ t:(WS type)?
+  { return t ? {name:chars.join(''), type:t[1]} : chars.join(''); }
 
 quote = QuoteChar e:expression
   { return ['quote', e]; }

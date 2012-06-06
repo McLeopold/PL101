@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="monokai.css" />
   <script src="scheme.js"></script>  
   <link rel="stylesheet" href="tscheem.css" />
-  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+  <script src="jquery.min.js"></script>
   <script src="tscheem_parser.js"></script>
   <script src="tscheem_interpreter.js"></script>
   <script src="tscheem.js"></script>
@@ -21,13 +21,7 @@
     <input id="typecheck" type="button" value="Type Check" />
     <input id="run" type="button" value="Run" /><br />
     <textarea id="input" cols="80" rows="5">
-(begin
- (define factorial (number -> number)
-   (lambda-one n number
-               (if ((= n) 0)
-                   1
-                   ((* n) (factorial ((- n) 1))))))
- (factorial 5))
+((lambda (x number y number) (= x y)) 1 2)
     </textarea><br />
     <p>Console:</p>
     <div id="console"></div>

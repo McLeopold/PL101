@@ -1,0 +1,256 @@
+start = exprs
+
+exprs = WS? es:exprline* WS?
+  { 
+    if (es.length === 0) {
+      return [];
+    } else if (es.length === 1) {
+      return es[0];
+    } else {
+      return ['do'].concat(es);
+    }
+  }
+
+exprline = es:exprpiece+ (EOL / &CloseBlock)
+  { return es.length === 1 ? es[0] : es; }
+
+exprpiece = S? e:(infix / blocks / atomlist / list / set / map / quote / float / integer / atom) cs:(atomlist+)?
+  {
+    var result = e;
+    for (var i = 0, ilen = cs.length; i < ilen; ++i) {
+      result = [result].concat(cs[i]);
+    }
+    return result;
+  }
+
+expr = WS? e:(infix / blocks / atomlist / list / set / map / quote / float / integer / atom) cs:(atomlist+)?
+  {
+    var result = e;
+    for (var i = 0, ilen = cs.length; i < ilen; ++i) {
+      result = [result].concat(cs[i]);
+    }
+    return result;
+  }
+
+atomlist
+  = OpenChar WS? es:expr* WS? CloseChar
+    { return es; }
+
+atom = chars:AtomChar+ t:(WS type)?
+  { return t ? {name:chars.join(''), type:t[1]} : chars.join(''); }
+
+quote = QuoteChar e:expr
+  { return ['quote', e]; }
+
+list = OpenList WS? es:expr* CloseList
+  { return ['list', es]; }
+
+set
+  = OpenList WS? ',' WS? es:expr* WS? CloseList
+    { return ['set', es]; }
+
+map
+  = OpenList WS? es:mapentry+ WS? CloseList
+    { return ['map', es]; }
+  / OpenList WS? ':' WS? CloseList
+    { return ['map', []]; }
+
+mapentry = key:expr WS? ':' WS? value:expr
+  { return [key, value]; }
+
+// support for structured blocks using {}
+
+  blocks
+    = scopeblock
+    / fnblock
+    / ifblock
+
+  block = OpenBlock WS? es:exprs CloseBlock
+    { return es; }
+
+  scopeblock = b:block
+    { return ['scope', b]; }
+
+  fnblock = "fn" WS? a:atomlist WS? b:block
+    { return ["fn", a, b]; }
+
+  ifblock = "if" WS? e:expr WS? b:block els:elseblock?
+    { return els ? ["if", e, b, els] : ["if", e, b, 'nil']; }
+
+  elseblock = WS? "else" WS? b:block
+    { return b; }
+
+// infix operators, higher precedence first
+
+  infix = assign
+  primary = e:(blocks / atomlist / list / set / map / quote / float / integer / atom) cs:(atomlist+)?
+  {
+    var result = e;
+    for (var i = 0, ilen = cs.length; i < ilen; ++i) {
+      result = [result].concat(cs[i]);
+    }
+    return result;
+  }
+  access_op = "."
+  unary_op = "~"
+  exp_op = "^"
+  mult_op = "*" / "/" / "%" / "//"
+  add_op = "+" / "-" / "++"
+  shift_op = "<<" / ">>"
+  bitwise_op = "&" / "|" / "><"
+  comp_op = "<=" / ">=" / "!=" / "==" / "<" / ">" / "<=>" / "in"
+  lnot_op = "not"
+  land_op = "and"
+  lor_op = "or" / "xor"
+  assign_op
+    = "=" / ":="
+    / "^="
+    / "*=" / "/=" / "%=" / "//="
+    / "+=" / "-=" / "++="
+    / "<<=" / ">>="
+    / "&=" / "|=" / "><="
+
+  access = head:primary tail:(WS? op:access_op WS? primary)*
+    {
+      var result = head;
+      for (var i = 0, ilen = tail.length; i < ilen; ++i) {
+        result = [tail[i][1], result];
+        result.push(tail[i][3]);
+      }
+      return result;
+    }
+
+  unary
+    = op:unary_op S head:access
+      { return [op, head]; }
+    / access
+
+  exp
+    = head:unary S op:exp_op S tail:exp
+      { return [op, head, tail]; }
+    / unary
+
+  mult = head:exp tail:(S mult_op S exp)*
+    {
+      var result = head;
+      for (var i = 0, ilen = tail.length; i < ilen; ++i) {
+        result = [tail[i][1], result];
+        result.push(tail[i][3]);
+      }
+      return result;
+    }
+
+  add = head:mult tail:(S add_op S mult)*
+    {
+      var result = head;
+      for (var i = 0, ilen = tail.length; i < ilen; ++i) {
+        result = [tail[i][1], result];
+        result.push(tail[i][3]);
+      }
+      return result;
+    }
+
+  shift = head:add tail:(S shift_op S add)*
+    {
+      var result = head;
+      for (var i = 0, ilen = tail.length; i < ilen; ++i) {
+        result = [tail[i][1], result];
+        result.push(tail[i][3]);
+      }
+      return result;
+    }
+
+  bitwise = head:shift tail:(S bitwise_op S shift)*
+    {
+      var result = head;
+      for (var i = 0, ilen = tail.length; i < ilen; ++i) {
+        result = [tail[i][1], result];
+        result.push(tail[i][3]);
+      }
+      return result;
+    }
+
+  comp = head:bitwise tail:(S comp_op S bitwise)*
+    {
+      var result = head;
+      for (var i = 0, ilen = tail.length; i < ilen; ++i) {
+        result = [tail[i][1], result];
+        result.push(tail[i][3]);
+      }
+      return result;
+    }
+
+  lnot = head:comp tail:(S lnot_op S comp)*
+    {
+      var result = head;
+      for (var i = 0, ilen = tail.length; i < ilen; ++i) {
+        result = [tail[i][1], result];
+        result.push(tail[i][3]);
+      }
+      return result;
+    }
+
+  land = head:lnot tail:(S land_op S lnot)*
+    {
+      var result = head;
+      for (var i = 0, ilen = tail.length; i < ilen; ++i) {
+        result = [tail[i][1], result];
+        result.push(tail[i][3]);
+      }
+      return result;
+    }
+
+  lor = head:land tail:(S lor_op S land)*
+    {
+      var result = head;
+      for (var i = 0, ilen = tail.length; i < ilen; ++i) {
+        result = [tail[i][1], result];
+        result.push(tail[i][3]);
+      }
+      return result;
+    }
+
+  assign
+    = head:lor S op:assign_op S tail:assign
+      { return [op, head, tail]; }
+    / lor
+
+// types
+
+type = arrowtype / basetype
+
+arrowtype = OpenChar WS? l:type WS? "->" WS? r:type WS? CloseChar
+  { return {tag: 'arrowtype', left:l, right:r }; }
+
+basetype = t:("number" / "boolean") &(!(AtomChar))
+  { return {tag: 'basetype', name: t}; }
+
+// character classes
+
+  S = (SpaceChar / Comment)+
+  WS = (SpaceChar / EOLChar / Comment)+
+  Comment = CommentChar LineChar*
+  integer = d:[0-9]+ !(AtomChar)
+    { return parseInt(d.join(''), 10); }
+  float
+    = d:[0-9]+ '.' f:[0-9]*
+      { return parseFloat(d.join('') + '.' + f.join(''), 10); }
+    / d:[0-9]* '.' f:[0-9]+
+      { return parseFloat(d.join('') + '.' + f.join(''), 10); }
+
+  AtomChar = [0-9a-zA-Z_?!+\-=@#$%^&*/]
+  LineChar = (!(EOLChar) SourceChar)
+  EOLChar = [\u000a\u000b\u000c\u000d\u0085\u2028\u2029]
+  SpaceChar = [\u0009\u0020\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006]
+  QuoteChar = "'"
+  OpenChar = '('
+  CloseChar = ')'
+  OpenList = '['
+  CloseList = ']'
+  OpenBlock = '{'
+  CloseBlock = '}'
+  CommentChar = ';;'
+  SourceChar = [\u0000-\uffff]
+  EOF = !(SourceChar)
+  EOL = (EOLChar)* EOF
+      / (EOLChar)+

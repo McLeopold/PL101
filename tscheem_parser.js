@@ -121,16 +121,13 @@ TScheem.parser = (function(){
         result0 = parse_WS();
         result0 = result0 !== null ? result0 : "";
         if (result0 !== null) {
-          result1 = parse_type();
+          result1 = parse_quote();
           if (result1 === null) {
-            result1 = parse_quote();
+            result1 = parse_integer();
             if (result1 === null) {
-              result1 = parse_integer();
+              result1 = parse_atom();
               if (result1 === null) {
-                result1 = parse_atom();
-                if (result1 === null) {
-                  result1 = parse_atomlist();
-                }
+                result1 = parse_atomlist();
               }
             }
           }
@@ -200,10 +197,11 @@ TScheem.parser = (function(){
       }
       
       function parse_atom() {
-        var result0, result1;
-        var pos0;
+        var result0, result1, result2;
+        var pos0, pos1, pos2;
         
         pos0 = pos;
+        pos1 = pos;
         result1 = parse_AtomChar();
         if (result1 !== null) {
           result0 = [];
@@ -215,7 +213,33 @@ TScheem.parser = (function(){
           result0 = null;
         }
         if (result0 !== null) {
-          result0 = (function(offset, chars) { return chars.join(''); })(pos0, result0);
+          pos2 = pos;
+          result1 = parse_WS();
+          if (result1 !== null) {
+            result2 = parse_type();
+            if (result2 !== null) {
+              result1 = [result1, result2];
+            } else {
+              result1 = null;
+              pos = pos2;
+            }
+          } else {
+            result1 = null;
+            pos = pos2;
+          }
+          result1 = result1 !== null ? result1 : "";
+          if (result1 !== null) {
+            result0 = [result0, result1];
+          } else {
+            result0 = null;
+            pos = pos1;
+          }
+        } else {
+          result0 = null;
+          pos = pos1;
+        }
+        if (result0 !== null) {
+          result0 = (function(offset, chars, t) { return t ? {name:chars.join(''), type:t[1]} : chars.join(''); })(pos0, result0[0], result0[1]);
         }
         if (result0 === null) {
           pos = pos0;

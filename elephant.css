@@ -1,0 +1,44 @@
+body {
+	/*background: #171812;*/
+	/*color: #f8f8f2;*/
+	font-family: 'DejaVu Sans Mono', monospace;
+	background-image: url('elephant.png');
+	background-repeat: no-repeat;
+}
+input[type="button"] {
+	width: 100px;
+	height: 30px;
+	border: solid 2px #777;
+	border-radius: 5px;
+	margin: 2px;
+}
+h1 {
+	margin-left: 100px;
+}
+#toolbar {
+	margin-left: 100px;
+}
+#input {
+	width: 663px;
+}
+#editor {
+	float: left;
+	width: 663px;
+}
+#console {
+	/*background: #272822;*/
+	padding: 5px;
+	border: solid 2px #777;
+	border-radius: 5px;
+	height: 300px;
+	overflow: auto;
+}
+#help {
+	margin: 10px;
+	float: left;
+	font-family: monospace;
+}
+.CodeMirror {
+	border: solid 2px #777;
+	border-radius: 5px;
+}

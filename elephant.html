@@ -1,0 +1,38 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Elephant</title>
+  <script src="codemirror.js"></script>
+  <link rel="stylesheet" href="codemirror.css" />
+  <link rel="stylesheet" href="monokai.css" />
+  <script src="scheme.js"></script>  
+  <link rel="stylesheet" href="elephant.css" />
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+  <script src="elephant_parser.js"></script>
+  <script src="elephant_type_checker.js"></script>
+  <script src="elephant_interpreter.js"></script>
+  <script src="elephant.js"></script>
+</head>
+<body>
+  <h1>Elephant Programming Language</h1>
+  <div id="editor">
+    <div id="toolbar">
+      <input id="parse" type="button" value="Parse" />
+      <input id="typecheck" type="button" value="Type Check" />
+      <input id="run" type="button" value="Run" /><br />
+    </div>
+    <textarea id="input" cols="80" rows="5">
+accum := fn (n) {
+  fn (i) {
+    n += i
+  }
+}
+acct := accum(7)
+acct(5)
+alert(acct(3))
+    </textarea><br />
+    <p>Console:</p>
+    <div id="console"></div>
+  </div>
+</body>
+</html>
