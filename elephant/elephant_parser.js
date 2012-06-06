@@ -1008,7 +1008,7 @@ Elephant.parser = (function(){
           pos = pos1;
         }
         if (result0 !== null) {
-          result0 = (function(offset, e, b, els) { return els ? ["if", e, b, els] : ["if", e, b, 'nil']; })(pos0, result0[2], result0[4], result0[5]);
+          result0 = (function(offset, e, b, els) { return els ? ["if", e, b, els] : ["if", e, b, []]; })(pos0, result0[2], result0[4], result0[5]);
         }
         if (result0 === null) {
           pos = pos0;
@@ -2708,6 +2708,17 @@ Elephant.parser = (function(){
             result0 = null;
             if (reportFailures === 0) {
               matchFailed("\"boolean\"");
+            }
+          }
+          if (result0 === null) {
+            if (input.substr(pos, 4) === "list") {
+              result0 = "list";
+              pos += 4;
+            } else {
+              result0 = null;
+              if (reportFailures === 0) {
+                matchFailed("\"list\"");
+              }
             }
           }
         }

@@ -51,15 +51,6 @@ Elephant.interpreter = (function () {
   };
 
   var initial_env = {
-    'assert-args-0': function () {
-      return arguments.length === 0 ? true : false;
-    },
-    'assert-args-1': function () {
-      return arguments.length === 1 ? true : false;
-    },
-    'assert-args-2': function () {
-      return arguments.length === 2 ? true : false;
-    },
     // operators
     // access
     '.': function (x, y) {
@@ -114,6 +105,7 @@ Elephant.interpreter = (function () {
     'car': function (x, y) { return x[0]; },
     'cdr': function (x, y) { x.shift(); return x; },
     'cdr': function (x, y) { return x.slice(1); },
+    'len': function (x) { return x.length; },
     'alert': function (arg) {
       console.log(arg); return arg;
     }
@@ -122,7 +114,10 @@ Elephant.interpreter = (function () {
   var evalExpr = function (expr, env) {
     env = env || {bindings: {}, outer: {}};
     // Numbers evaluate to themselves
-    if (typeof expr === 'number') {
+    if (typeof expr === 'number' || typeof expr === 'boolean') {
+      return expr;
+    }
+    if (expr instanceof Array && expr.length === 0) {
       return expr;
     }
     if (typeof expr === 'string') {
@@ -168,7 +163,12 @@ Elephant.interpreter = (function () {
         return function () {
           env = {bindings: {}, outer: env};
           for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
-            add_binding(env, expr[1][i], arguments[i]);
+            if (typeof expr[1][i] === 'object' && !(expr[1][i] instanceof Array)) {
+              add_binding(env, expr[1][i].name, arguments[i]);  
+            } else {
+              add_binding(env, expr[1][i], arguments[i]);  
+            }
+            
           }
           return evalExpr(expr[2], env);
         };
@@ -209,7 +209,11 @@ Elephant.interpreter = (function () {
         for (var i = 1, ilen = expr.length; i < ilen; ++i) {
           args.push(evalExpr(expr[i], env));
         }
-        return func.apply(env, args);
+        if (typeof func !== 'function') {
+          return func;
+        } else {
+          return func.apply(env, args);
+        }
     }
   };
 
