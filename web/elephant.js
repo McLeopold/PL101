@@ -39,37 +39,62 @@ $(function() {
     var user_text = $('#input').val();
     $('#console').html(''); // clear console
     try {
-      var parsed = TScheem.parser.parse(user_text);
+      var parsed = Elephant.parser.parse(user_text);
       log_console(nice_list(parsed));
     }
     catch(e) {
-      log_console('Parse Error: ' + e);
+      log_console(['Parse Error:',
+                   '  Line ' + e.line,
+                   '  Column ' + e.column,
+                   '  Found ' + e.found,
+                   '  Expected ' + e.expected.join('\n        or ')].join('\n'));
     }
   });
   $('#typecheck').click(function() {
     myCodeMirror.save();
     var user_text = $('#input').val();
     $('#console').html(''); // clear console
-    try {
-      var type = TScheem.interpreter.typeTScheemString(user_text);
-      log_console(TScheem.interpreter.prettyType(type));
-    } catch (err) {
-      log_console(err);
-    }
+    //try {
+      var parsed = Elephant.parser.parse(user_text);
+      //try {
+        var env = {};
+        var result = Elephant.type_checker.typeExpr(parsed, env);
+        log_console(Elephant.type_checker.prettyType(result));
+      //}
+      //catch(e) {
+      //  log_console('Type Check Error:\n  ' + e);
+      //}
+    //}
+    //catch(e) {
+    //  log_console(['Parse Error:',
+    //               '  Line ' + e.line,
+    //               '  Column ' + e.column,
+    //               '  Found ' + e.found,
+    //               '  Expected ' + e.expected.join('\n        or ')].join('\n'));
+    //}
   });
   $('#run').click(function() {
     myCodeMirror.save();
     var user_text = $('#input').val();
     $('#console').html(''); // clear console
     try {
-      var parsed = TScheem.parser.parse(user_text);
+      var parsed = Elephant.parser.parse(user_text);
+      try {
+        var env = {};
+        var result = Elephant.interpreter.evalExpr(parsed, env);
+        log_console(JSON.stringify(result));
+        log_console(JSON.stringify(nice_env(env)));
+      }
+      catch(e) {
+        log_console('Eval Error:\n  ' + e);
+      }
     }
     catch(e) {
-      log_console('Parse Error: ' + e);
+      log_console(['Parse Error:',
+                   '  Line ' + e.line,
+                   '  Column ' + e.column,
+                   '  Found ' + e.found,
+                   '  Expected ' + e.expected.join('\n        or ')].join('\n'));
     }
-    var env = {};
-    var result = TScheem.interpreter.evalTScheem(parsed, env);
-    log_console(JSON.stringify(result));
-    log_console(JSON.stringify(nice_env(env)));
   });
 });

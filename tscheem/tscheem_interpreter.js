@@ -29,6 +29,7 @@ TScheem.interpreter = (function () {
         'cdr': function (x) { return function (y) { x.shift(); return x; }; },
         'cdr': function (x) { return function (y) { return x.slice(1); }; },
         'alert': function (arg) { console.log(arg); return arg; },
+        'random': function () { return Math.random(); },
         '#t': true,
         '#f': false
       },
@@ -41,6 +42,7 @@ TScheem.interpreter = (function () {
         '>': arrowtype(basetype('number'), arrowtype(basetype('number'), basetype('boolean'))),
         '<': arrowtype(basetype('number'), arrowtype(basetype('number'), basetype('boolean'))),
         '<=>': arrowtype(basetype('number'), arrowtype(basetype('number'), basetype('number'))),
+        'random': arrowtype(basetype('unit'), basetype('number')),
         '#t': basetype('boolean'),
         '#f': basetype('boolean')
       },
@@ -182,20 +184,24 @@ TScheem.interpreter = (function () {
       default:
         var A = expr[0];
         var A_type = typeExpr(A, context);
-        for (var i = 1, ilen = expr.length; i < ilen; ++i) {
-          var B = expr[i];
-          var B_type = typeExpr(B, context);
-          // Check that A type is arrow type
-          if (A_type.tag !== 'arrowtype') {
-            throw new Error('Not an arrow type');
+        if (expr.length === 1) {
+          A_type = A_type.right;
+        } else {
+          for (var i = 1, ilen = expr.length; i < ilen; ++i) {
+            var B = expr[i];
+            var B_type = typeExpr(B, context);
+            // Check that A type is arrow type
+            if (A_type.tag !== 'arrowtype') {
+              throw new Error('Not an arrow type');
+            }
+            var U_type = A_type.left;
+            var V_type = A_type.right;
+            // Verify argument type matches
+            if (sameType(U_type, B_type) === false) {
+              throw new Error('Argument type did not match' + prettyType(U_type) + prettyType(B_type));
+            }
+            A_type = V_type;
           }
-          var U_type = A_type.left;
-          var V_type = A_type.right;
-          // Verify argument type matches
-          if (sameType(U_type, B_type) === false) {
-            throw new Error('Argument type did not match' + prettyType(U_type) + prettyType(B_type));
-          }
-          A_type = V_type;
         }
         return A_type;
     }
@@ -204,15 +210,16 @@ TScheem.interpreter = (function () {
   var typeExprIf = function (expr, context) {
     var t1 = typeExpr(expr[2], context)
     , t2 = typeExpr(expr[3], context)
+    , c = typeExpr(expr[1], context)
     ;
-    if (sameType(typeExpr(expr[1], context), basetype('boolean'))) {
+    if (sameType(c, basetype('boolean'))) {
       if (sameType(t1, t2)) {
         return t1;
       } else {
-        throw new Error('NO!');
+        throw new Error('if branch return types do not match: ' + prettyType(t1) + ' != ' + prettyType(t2));
       }
     } else {
-      throw new Error('NO!');
+      throw new Error('if condition returns ' + prettyType(c) + ' instead of boolean');
     }
   };
 
@@ -231,18 +238,18 @@ TScheem.interpreter = (function () {
       types: {},
       outer: context
     };
-    var lambda_type = final_type = {};
-
-    for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
-      new_bindings.types[expr[1][i].name] = expr[1][i].type;
-      lambda_type = arrowtype(expr[1][i].type, lambda_type);
+    var lambda_type;
+    if (expr[1].length === 0) {
+      lambda_type = arrowtype(basetype('unit'), typeExpr(expr[2], context));
+    } else {
+      final_type = lambda_type = {};
+      for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
+        new_bindings.types[expr[1][i].name] = expr[1][i].type;
+        lambda_type = arrowtype(expr[1][i].type, lambda_type);
+      }
+      extend(final_type, typeExpr(expr[2], new_bindings));
     }
-    extend(final_type, typeExpr(expr[2], new_bindings));
     return lambda_type;
-    return {tag: 'arrowtype',
-            left: expr[1].type,
-            right: typeExpr(expr[2], new_bindings)
-           };
   };
 
   var prettyType = function (type) {
@@ -320,11 +327,14 @@ TScheem.interpreter = (function () {
         return evalExpr(expr[3], env);
       default:
         var func = evalExpr(expr[0], env);
-        for (var i = 1, ilen = expr.length; i < ilen; ++i) {
-          var func = func.call(null, evalExpr(expr[i], env));
+        if (expr.length == 1) {
+          func = func();
+        } else {
+          for (var i = 1, ilen = expr.length; i < ilen; ++i) {
+            var func = func.call(null, evalExpr(expr[i], env));
+          }
         }
-        // var arg = evalExpr(expr[1], env);
-        return func; // func.call(null, arg);
+        return func;
     }
   };
 

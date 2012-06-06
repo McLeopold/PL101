@@ -14,6 +14,7 @@ task('compile', [], function () {
     .run('jake -f scheem/Jakefile.js -C scheem')
     .run('jake -f tscheem/Jakefile.js -C tscheem')
     .run('jake -f tortoise/Jakefile.js -C tortoise')
+    .run('jake -f elephant/Jakefile.js -C elephant')
   ;
 }, true);
 
@@ -25,6 +26,8 @@ task('deploy', ['clean', 'compile'], function () {
     .cp('tscheem/test/*', 'deploy/')
     .cp('tortoise/tortoise*', 'deploy/')
     .cp('tortoise/test/*', 'deploy/')
+    .cp('elephant/test/*', 'deploy/')
+    .cp('elephant/elephant*', 'deploy/')
     .cp('web/*', 'deploy/', {recursive: true})
     .cp('node_modules/mocha/mocha.*', 'deploy/')
     .cp('node_modules/chai/chai.js', 'deploy/')
