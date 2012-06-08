@@ -88,21 +88,24 @@ Elephant.type_checker = (function () {
   var get_env = function (env) {
     var initial_env = {
       types: {
+        // access
+        '.': arrow2type(listtype('a'), 'number', 'a'),
         //
-        '+': arrow2type('number', 'number', 'number'),
+        '+': arrow2type('a', 'a', 'a'),
         '-': arrow2type('number', 'number', 'number'),
         '*': arrow2type('number', 'number', 'number'),
         '/': arrow2type('number', 'number', 'number'),
-        '==': arrow2type('number', 'number', 'boolean'),
+        '==': arrow2type('a', 'a', 'boolean'),
         '>': arrow2type('number', 'number', 'boolean'),
         '<': arrow2type('number', 'number', 'boolean'),
         '<=>': arrow2type('number', 'number', 'number'),
         '+=': arrow2type('number', 'number', 'number'),
-        'len': arrow1type('list', 'number'),
+        'len': arrow1type(listtype('a'), 'number'),
         'random': arrowtype(basetype('unit'), basetype('number')),
         '#t': basetype('boolean'),
         '#f': basetype('boolean'),
-        'alert': arrow1type('variant', 'variant')
+        '++': arrow2type(listtype('a'), 'a', listtype('a')),
+        'alert': arrow1type('a', 'a')
       },
       outer: {}
     };
@@ -149,29 +152,72 @@ Elephant.type_checker = (function () {
   };
 
   var basetype = function (name) {
-    return {tag:'basetype', name: name};
+    return name.length === 1
+      ? {tag:'vartype', name: name}
+      : {tag:'basetype', name: name};
   }
   var arrowtype = function (left, right) {
     return {tag:'arrowtype', left: left, right: right};
   }
   var arrow1type = function (a, b) {
-    return {tag:'arrowtype', left: basetype(a), right:basetype(b)};
+    return  { tag:'arrowtype',
+              left: typeof a === 'string' ? basetype(a) : a,
+              right: typeof b === 'string' ? basetype(b) : b
+            };
   }
   var arrow2type = function (a, b, c) {
-    return {tag:'arrowtype', left: basetype(a), right:{tag:'arrowtype', left:basetype(b), right:basetype(c)}};
+    return  {tag:'arrowtype',
+              left: typeof a === 'string' ? basetype(a) : a,
+              right: {
+                tag:'arrowtype',
+                left: typeof b === 'string' ? basetype(b) : b,
+                right: typeof c === 'string' ? basetype(c) : c
+              }
+            };
+  }
+  var listtype = function (name) {
+    return  { tag:'listtype',
+              inner: typeof name === 'string' ? basetype(name) : name
+            };
   }
 
-  var sameType = function (a, b) {
-      if (a.tag === 'basetype')
-          return a.tag === b.tag &&
-                (a.name === 'variant' || a.name === b.name);
-      else if (a.tag === 'arrowtype')
-          return a.tag === b.tag && sameType(a.left, b.left) && sameType(a.right, b.right);
+  var sameType = function (a, b, a_var_types, b_var_types) {
+    if (b.tag === 'vartype') {
+      b_var_types[b.name] = a;
+      return a;
+    }
+    if (a.tag === 'vartype') {
+      a_var_types[a.name] = b;
+      return b;
+    }
+    if (a.tag === 'basetype' && a.tag === b.tag && a.name === b.name) {
+      return basetype(a.name);
+    }
+    if (a.tag === 'arrowtype' && a.tag === b.tag) {
+      var t1 = sameType(a.left, b.left, a_var_types, b_var_types);
+      if (t1) {
+        var t2 = sameType(a.right, b.right, a_var_types, b_var_types);
+        if (t2) {
+          return arrowtype(t1, t2);
+        }
+      }
+      return a;
+    }
+    if (a.tag === 'listtype' && a.tag === b.tag) {
+      var t = sameType(a.inner, b.inner, a_var_types, b_var_types);
+      if (t) {
+        return listtype(t);
+      }
+    }
   };
 
-  var restrictiveType = function (a, b) {
-    if (a.name === 'variant') {
-      return b;
+  var buildType = function (a, var_types) {
+    if (a.tag === 'vartype') {
+      return var_types[a.name] || a;
+    } else if (a.tag === 'arrowtype') {
+      return arrowtype(buildType(a.left, var_types), buildType(a.right, var_types));
+    } else if (a.tag === 'listtype') {
+      return listtype(buildType(a.inner, var_types));
     } else {
       return a;
     }
@@ -199,15 +245,16 @@ Elephant.type_checker = (function () {
       case 'fn':
         return typeExprLambda(expr, context);
       case ':=':
+        var type = typeExpr(expr[2], context);
         if (typeof expr[1] === 'object') {
           add_type(context, expr[1].name, expr[1].type);
-          if (!sameType(expr[1].type, typeExpr(expr[2], context))) {
-            throw new Error('define does not return ' + prettyType(expr[2]) + ' but ' + typeExpr(expr[3], context));
+          if (!sameType(expr[1].type, type)) {
+            throw new Error('define does not return ' + prettyType(expr[1].type) + ' but ' + type);
           }
         } else {
-          add_type(context, expr[1], typeExpr(expr[2], context));
+          add_type(context, expr[1], type);
         }
-        return typeExpr(expr[1], context);
+        return type;
       case ':=':
         var A_type = typeExpr(expr[1], context);
         var B_type = typeExpr(expr[2], context);
@@ -222,16 +269,32 @@ Elephant.type_checker = (function () {
         }
         return result;
       case 'list':
-        return basetype('list');
+        return listtype(typeExpr(expr[1][0], context));
       default:
+        var get_var_types = function (type) {
+          var var_types = {};
+          (function get_var_type (t) {
+            if (t.tag === 'vartype') {
+              var_types[t.name] = null;
+            } else if (t.tag === 'arrowtype') {
+              get_var_type(t.left);
+              get_var_type(t.right);
+            } else if (t.tag === 'listtype') {
+              get_var_type(t.inner);
+            }
+          }(type));
+          return var_types;
+        };
         var A = expr[0];
         var A_type = typeExpr(A, context);
+        var A_var_types = get_var_types(A_type);
         if (expr.length === 1) {
           A_type = A_type.right || A_type;
         } else {
           for (var i = 1, ilen = expr.length; i < ilen; ++i) {
             var B = expr[i];
             var B_type = typeExpr(B, context);
+            var B_var_types = get_var_types(B_type);
             // Check that A type is arrow type
             if (A_type.tag !== 'arrowtype') {
               throw new Error('Not an arrow type');
@@ -239,21 +302,21 @@ Elephant.type_checker = (function () {
             var U_type = A_type.left;
             var V_type = A_type.right;
             // Verify argument type matches
-            if (sameType(U_type, B_type) === false) {
+            var S_type = sameType(U_type, B_type, A_var_types, B_var_types);
+            if (!S_type) {
               throw new Error('Argument type did not match: ' + prettyType(U_type) + ' != ' + prettyType(B_type));
             }
-            A_type = V_type;
+            A_type = buildType(V_type, A_var_types);
           }
         }
-        return restrictiveType(A_type, B_type);
+        return buildType(A_type, A_var_types);
     }
   };
 
   var typeExprIf = function (expr, context) {
-    var t1 = typeExpr(expr[2], context)
-    , t2 = typeExpr(expr[3], context)
-    , c = typeExpr(expr[1], context)
-    ;
+    var t1 = typeExpr(expr[2], context);
+    var t2 = typeExpr(expr[3], context);
+    var c = typeExpr(expr[1], context);
     if (sameType(c, basetype('boolean'))) {
       if (sameType(t1, t2)) {
         return t1;
@@ -293,10 +356,14 @@ Elephant.type_checker = (function () {
   };
 
   var prettyType = function (type) {
-    if (type.tag === 'basetype') {
+    if (type.tag === 'vartype') {
+      return type.name;
+    } else if (type.tag === 'basetype') {
       return type.name;
     } else if (type.tag === 'arrowtype') {
       return '(' + prettyType(type.left) + ' -> ' + prettyType(type.right) + ')';
+    } else if (type.tag === 'listtype') {
+      return '[' + prettyType(type.inner) + ']';
     }
   };
 

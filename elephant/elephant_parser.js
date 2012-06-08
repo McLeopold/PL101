@@ -81,6 +81,7 @@ Elephant.parser = (function(){
         "lor": parse_lor,
         "assign": parse_assign,
         "type": parse_type,
+        "listtype": parse_listtype,
         "arrowtype": parse_arrowtype,
         "basetype": parse_basetype,
         "S": parse_S,
@@ -1230,13 +1231,13 @@ Elephant.parser = (function(){
       function parse_add_op() {
         var result0;
         
-        if (input.charCodeAt(pos) === 43) {
-          result0 = "+";
-          pos++;
+        if (input.substr(pos, 2) === "++") {
+          result0 = "++";
+          pos += 2;
         } else {
           result0 = null;
           if (reportFailures === 0) {
-            matchFailed("\"+\"");
+            matchFailed("\"++\"");
           }
         }
         if (result0 === null) {
@@ -1250,13 +1251,13 @@ Elephant.parser = (function(){
             }
           }
           if (result0 === null) {
-            if (input.substr(pos, 2) === "++") {
-              result0 = "++";
-              pos += 2;
+            if (input.charCodeAt(pos) === 43) {
+              result0 = "+";
+              pos++;
             } else {
               result0 = null;
               if (reportFailures === 0) {
-                matchFailed("\"++\"");
+                matchFailed("\"+\"");
               }
             }
           }
@@ -2598,7 +2599,58 @@ Elephant.parser = (function(){
         
         result0 = parse_arrowtype();
         if (result0 === null) {
-          result0 = parse_basetype();
+          result0 = parse_listtype();
+          if (result0 === null) {
+            result0 = parse_basetype();
+          }
+        }
+        return result0;
+      }
+      
+      function parse_listtype() {
+        var result0, result1, result2, result3, result4;
+        var pos0, pos1;
+        
+        pos0 = pos;
+        pos1 = pos;
+        result0 = parse_OpenList();
+        if (result0 !== null) {
+          result1 = parse_WS();
+          result1 = result1 !== null ? result1 : "";
+          if (result1 !== null) {
+            result2 = parse_type();
+            if (result2 !== null) {
+              result3 = parse_WS();
+              result3 = result3 !== null ? result3 : "";
+              if (result3 !== null) {
+                result4 = parse_CloseList();
+                if (result4 !== null) {
+                  result0 = [result0, result1, result2, result3, result4];
+                } else {
+                  result0 = null;
+                  pos = pos1;
+                }
+              } else {
+                result0 = null;
+                pos = pos1;
+              }
+            } else {
+              result0 = null;
+              pos = pos1;
+            }
+          } else {
+            result0 = null;
+            pos = pos1;
+          }
+        } else {
+          result0 = null;
+          pos = pos1;
+        }
+        if (result0 !== null) {
+          result0 = (function(offset, t) { return {tag: 'listtype', inner: t}; })(pos0, result0[2]);
+        }
+        if (result0 === null) {
+          pos = pos0;
         }
         return result0;
       }
@@ -2708,17 +2760,6 @@ Elephant.parser = (function(){
             result0 = null;
             if (reportFailures === 0) {
               matchFailed("\"boolean\"");
-            }
-          }
-          if (result0 === null) {
-            if (input.substr(pos, 4) === "list") {
-              result0 = "list";
-              pos += 4;
-            } else {
-              result0 = null;
-              if (reportFailures === 0) {
-                matchFailed("\"list\"");
-              }
             }
           }
         }
