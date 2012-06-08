@@ -344,7 +344,7 @@ Elephant.type_checker = (function () {
           vtype = expr[1][i].type;
           name = expr[1][i].name;
         } else {
-          vtype = basetype('variant');
+          vtype = basetype('a');
           name = expr[1][i];
         }
         new_env.types[name] = vtype;
