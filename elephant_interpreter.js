@@ -54,7 +54,7 @@ Elephant.interpreter = (function () {
     // operators
     // access
     '.': function (x, y) {
-      return x.y;
+      return x[y];
     },
     // unary
     '~': function (x) { return ~x; },
@@ -67,17 +67,30 @@ Elephant.interpreter = (function () {
     '%': function (x, y) { return x % y; },
     // addition / subtraction
     '+': function (x, y) {
-      if (arguments.length === 2 )
-        return x + y;
-      else {
-        var result = 0;
-        for (var i = 0, ilen = arguments.length; i < ilen; ++i) {
-          result += arguments[i];
+      if (arguments.length === 2 ) {
+        if (x instanceof Array) {
+          for (var i = 0, ilen = y.length; i < ilen; ++i) {
+            x.push(y[i]);
+          }
+          return x;
+        } else {
+          return x + y;
+        }
+      } else {
+        var result = arguments[0];
+        for (var i = 1, ilen = arguments.length; i < ilen; ++i) {
+          if (result instanceof Array) {
+            for (var i = 0, ilen = y.length; i < ilen; ++i) {
+              result.push(y[i]);
+            }
+          } else {
+            result += arguments[i];
+          }          
         }
         return result;
       }
     },
-    '++': function (x, y) { return x + y; },
+    '++': function (x, y) { x.push(y); return x; },
     '-': function (x, y) { return x - y; },
     // bitshift
     '>>': function (x, y) { return x >> y; },
@@ -108,7 +121,9 @@ Elephant.interpreter = (function () {
     'len': function (x) { return x.length; },
     'alert': function (arg) {
       console.log(arg); return arg;
-    }
+    },
+    '#t': true,
+    '#f': false
   };
 
   var evalExpr = function (expr, env) {

@@ -34,9 +34,15 @@ $(function() {
     mode:  "scheme",
     //theme: "monokai"
   });
+  // load user script
+  var user_script = localStorage.getItem('elephant');
+  if (user_script) {
+    myCodeMirror.setValue(user_script);
+  }
   $('#parse').click(function() {
     myCodeMirror.save();
     var user_text = $('#input').val();
+    localStorage.setItem('elephant', user_text);
     $('#console').html(''); // clear console
     try {
       var parsed = Elephant.parser.parse(user_text);
