@@ -1,0 +1,58 @@
+body {
+	/*background: #dec;*/
+	/*color: #f8f8f2;*/
+	font-family: monospace;
+}
+#controls input[type="button"] {
+	width: 60px;
+	height: 30px;
+}
+#samples input[type="button"] {
+	border: solid 1px gray;
+	border-radius: 6px;
+	background: #d0e0c0;
+}
+#input {
+	width: 663px;
+	height: 400px;
+}
+#editor {
+	position: absolute;
+	top: 54px;
+	right: 0px;
+	left: 420px;
+	bottom: 0px;
+}
+#console {
+	background: #d0e0c0;
+	padding: 5px;
+	border: solid 1px black;
+	height: 200px;
+	overflow: auto;
+}
+#help {
+	margin: 10px;
+	float: left;
+	font-family: monospace;
+}
+.CodeMirror {
+	position: absolute;
+	border: solid 1px black;
+	left: 0px;
+	right: 0px;
+	top: 30px;
+	bottom: 30px;
+}
+#samples {
+	position: absolute;
+	bottom: 0px;
+}
+#canvas {
+	padding-top: 420px;
+	float: left;
+	width: 400;
+}
+svg {
+	border: solid 1px #f8f8f2;
+	background-color: #fff;
+}

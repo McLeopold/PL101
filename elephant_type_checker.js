@@ -227,15 +227,17 @@ Elephant.type_checker = (function () {
     if (typeof expr === 'undefined') {
       throw new Error('invalid form');
     }
-    if (typeof expr === 'number' || typeof expr === 'boolean') {
-      return basetype(typeof expr);
+    if (expr.tag === 'literal') {
+      return expr.type;
     }
-    if (typeof expr === 'string') {
-      return lookup(context, expr);
+    if (expr.tag === 'identifier') {
+      return lookup(context, expr.value);
     }
+    /*
     if (typeof expr === 'object' && !(expr instanceof Array)) {
       return lookup(context, expr.name);
     }
+    */
     if (expr.length === 0) {
       return basetype('unit');
     }
@@ -262,6 +264,7 @@ Elephant.type_checker = (function () {
           throw new Error('set! changing ' + expr[1] + ' from ' + prettyType(A_type) + ' to ' + prettyType(B_type));
         }
         return A_type;
+      case 'scope':
       case 'do':
         var result = [];
         for (var i = 1; i < expr.length; ++i) {
@@ -269,7 +272,7 @@ Elephant.type_checker = (function () {
         }
         return result;
       case 'list':
-        return listtype(typeExpr(expr[1][0], context));
+        return expr[1].length > 0 ? listtype(typeExpr(expr[1][0], context)) : listtype('a');
       default:
         var get_var_types = function (type) {
           var var_types = {};

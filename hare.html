@@ -1,0 +1,37 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Hare</title>
+  <script src="codemirror.js"></script>
+  <script src="raphael.js"></script>
+  <link rel="stylesheet" href="codemirror.css" />
+  <link rel="stylesheet" href="neat.css" />
+  <script src="javascript.js"></script>  
+  <link rel="stylesheet" href="hare.css" />
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+  <script src="hare_gfx.js"></script>
+  <script src="hare_parser.js"></script>
+  <script src="hare_interpreter.js"></script>
+  <script src="hare_compiler.js"></script>
+  <script src="hare_samples.js"></script>
+  <script src="hare.js"></script>
+</head>
+<body>
+  <h1>Live Hare Editor and Interpreter!</h1>
+  <p>Hare <a href="hare_test.html">Tests</a> and <a href="hare.peg">PEG</a></p>
+  <div id="canvas">
+    <p>Console:</p>
+    <div id="console"></div>
+  </div>
+  <div id="editor">
+    <div id="controls">
+      <input id="parse" type="button" value="Parse" />
+      <input id="interpret" type="button" value="Interpret" />
+      <input id="compile" type="button" value="Compile" />
+      <input id="run" type="button" value="Run" />
+    </div>
+    <textarea id="input" cols="80" rows="40"></textarea><br />
+    <div id="samples">Samples:</div>
+  </div>
+</body>
+</html>

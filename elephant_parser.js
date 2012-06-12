@@ -43,6 +43,7 @@ Elephant.parser = (function(){
         "exprpiece": parse_exprpiece,
         "expr": parse_expr,
         "atomlist": parse_atomlist,
+        "identifierlist": parse_identifierlist,
         "atom": parse_atom,
         "quote": parse_quote,
         "list": parse_list,
@@ -51,10 +52,16 @@ Elephant.parser = (function(){
         "mapentry": parse_mapentry,
         "blocks": parse_blocks,
         "block": parse_block,
-        "scopeblock": parse_scopeblock,
+        "do_kw": parse_do_kw,
+        "doblock": parse_doblock,
+        "fn_kw": parse_fn_kw,
         "fnblock": parse_fnblock,
+        "if_kw": parse_if_kw,
         "ifblock": parse_ifblock,
+        "else_kw": parse_else_kw,
         "elseblock": parse_elseblock,
+        "loop_kw": parse_loop_kw,
+        "loopblock": parse_loopblock,
         "primary": parse_primary,
         "access_op": parse_access_op,
         "unary_op": parse_unary_op,
@@ -89,6 +96,7 @@ Elephant.parser = (function(){
         "Comment": parse_Comment,
         "integer": parse_integer,
         "float": parse_float,
+        "boolean": parse_boolean,
         "AtomChar": parse_AtomChar,
         "LineChar": parse_LineChar,
         "EOLChar": parse_EOLChar,
@@ -198,7 +206,7 @@ Elephant.parser = (function(){
             } else if (es.length === 1) {
               return es[0];
             } else {
-              return ['do'].concat(es);
+              return [{value: 'do', tag: 'keyword'}].concat(es);
             }
           })(pos0, result0[1]);
         }
@@ -284,7 +292,10 @@ Elephant.parser = (function(){
                         if (result1 === null) {
                           result1 = parse_integer();
                           if (result1 === null) {
-                            result1 = parse_atom();
+                            result1 = parse_boolean();
+                            if (result1 === null) {
+                              result1 = parse_atom();
+                            }
                           }
                         }
                       }
@@ -362,7 +373,10 @@ Elephant.parser = (function(){
                         if (result1 === null) {
                           result1 = parse_integer();
                           if (result1 === null) {
-                            result1 = parse_atom();
+                            result1 = parse_boolean();
+                            if (result1 === null) {
+                              result1 = parse_atom();
+                            }
                           }
                         }
                       }
@@ -466,6 +480,59 @@ Elephant.parser = (function(){
         return result0;
       }
       
+      function parse_identifierlist() {
+        var result0, result1, result2, result3, result4;
+        var pos0, pos1;
+        
+        pos0 = pos;
+        pos1 = pos;
+        result0 = parse_OpenChar();
+        if (result0 !== null) {
+          result1 = parse_WS();
+          result1 = result1 !== null ? result1 : "";
+          if (result1 !== null) {
+            result2 = [];
+            result3 = parse_atom();
+            while (result3 !== null) {
+              result2.push(result3);
+              result3 = parse_atom();
+            }
+            if (result2 !== null) {
+              result3 = parse_WS();
+              result3 = result3 !== null ? result3 : "";
+              if (result3 !== null) {
+                result4 = parse_CloseChar();
+                if (result4 !== null) {
+                  result0 = [result0, result1, result2, result3, result4];
+                } else {
+                  result0 = null;
+                  pos = pos1;
+                }
+              } else {
+                result0 = null;
+                pos = pos1;
+              }
+            } else {
+              result0 = null;
+              pos = pos1;
+            }
+          } else {
+            result0 = null;
+            pos = pos1;
+          }
+        } else {
+          result0 = null;
+          pos = pos1;
+        }
+        if (result0 !== null) {
+          result0 = (function(offset, as) { return as; })(pos0, result0[2]);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
+        return result0;
+      }
+      
       function parse_atom() {
         var result0, result1, result2;
         var pos0, pos1, pos2;
@@ -509,7 +576,10 @@ Elephant.parser = (function(){
           pos = pos1;
         }
         if (result0 !== null) {
-          result0 = (function(offset, chars, t) { return t ? {name:chars.join(''), type:t[1]} : chars.join(''); })(pos0, result0[0], result0[1]);
+          result0 = (function(offset, chars, t) { result = { value: chars.join(''), tag: 'identifier' };
+            if (t) { result.type = t; }
+            return result;
+          })(pos0, result0[0], result0[1]);
         }
         if (result0 === null) {
           pos = pos0;
@@ -546,8 +616,8 @@ Elephant.parser = (function(){
       }
       
       function parse_list() {
-        var result0, result1, result2, result3;
-        var pos0, pos1;
+        var result0, result1, result2, result3, result4, result5;
+        var pos0, pos1, pos2;
         
         pos0 = pos;
         pos1 = pos;
@@ -565,7 +635,27 @@ Elephant.parser = (function(){
             if (result2 !== null) {
               result3 = parse_CloseList();
               if (result3 !== null) {
-                result0 = [result0, result1, result2, result3];
+                pos2 = pos;
+                result4 = parse_WS();
+                if (result4 !== null) {
+                  result5 = parse_type();
+                  if (result5 !== null) {
+                    result4 = [result4, result5];
+                  } else {
+                    result4 = null;
+                    pos = pos2;
+                  }
+                } else {
+                  result4 = null;
+                  pos = pos2;
+                }
+                result4 = result4 !== null ? result4 : "";
+                if (result4 !== null) {
+                  result0 = [result0, result1, result2, result3, result4];
+                } else {
+                  result0 = null;
+                  pos = pos1;
+                }
               } else {
                 result0 = null;
                 pos = pos1;
@@ -583,7 +673,10 @@ Elephant.parser = (function(){
           pos = pos1;
         }
         if (result0 !== null) {
-          result0 = (function(offset, es) { return ['list', es]; })(pos0, result0[2]);
+          result0 = (function(offset, es, t) { result = { tag: 'literal', value: es};
+            if (t) { result.type = t[1]; }
+            return result;
+          })(pos0, result0[2], result0[4]);
         }
         if (result0 === null) {
           pos = pos0;
@@ -832,11 +925,17 @@ Elephant.parser = (function(){
       function parse_blocks() {
         var result0;
         
-        result0 = parse_scopeblock();
+        result0 = parse_fnblock();
         if (result0 === null) {
-          result0 = parse_fnblock();
+          result0 = parse_doblock();
           if (result0 === null) {
             result0 = parse_ifblock();
+            if (result0 === null) {
+              result0 = parse_loopblock();
+              if (result0 === null) {
+                result0 = parse_block();
+              }
+            }
           }
         }
         return result0;
@@ -883,14 +982,22 @@ Elephant.parser = (function(){
         return result0;
       }
       
-      function parse_scopeblock() {
+      function parse_do_kw() {
         var result0;
         var pos0;
         
         pos0 = pos;
-        result0 = parse_block();
+        if (input.substr(pos, 2) === "do") {
+          result0 = "do";
+          pos += 2;
+        } else {
+          result0 = null;
+          if (reportFailures === 0) {
+            matchFailed("\"do\"");
+          }
+        }
         if (result0 !== null) {
-          result0 = (function(offset, b) { return ['scope', b]; })(pos0, result0);
+          result0 = (function(offset, k) { return {tag: 'keyword', value: k}; })(pos0, result0);
         }
         if (result0 === null) {
           pos = pos0;
@@ -898,26 +1005,19 @@ Elephant.parser = (function(){
         return result0;
       }
       
-      function parse_fnblock() {
+      function parse_doblock() {
         var result0, result1, result2, result3, result4;
         var pos0, pos1;
         
         pos0 = pos;
         pos1 = pos;
-        if (input.substr(pos, 2) === "fn") {
-          result0 = "fn";
-          pos += 2;
-        } else {
-          result0 = null;
-          if (reportFailures === 0) {
-            matchFailed("\"fn\"");
-          }
-        }
+        result0 = parse_do_kw();
         if (result0 !== null) {
           result1 = parse_WS();
           result1 = result1 !== null ? result1 : "";
           if (result1 !== null) {
-            result2 = parse_atomlist();
+            result2 = parse_identifierlist();
+            result2 = result2 !== null ? result2 : "";
             if (result2 !== null) {
               result3 = parse_WS();
               result3 = result3 !== null ? result3 : "";
@@ -946,7 +1046,102 @@ Elephant.parser = (function(){
           pos = pos1;
         }
         if (result0 !== null) {
-          result0 = (function(offset, a, b) { return ["fn", a, b]; })(pos0, result0[2], result0[4]);
+          result0 = (function(offset, k, a, b) { return a ? [k, a, b] : [k, [], b]; })(pos0, result0[0], result0[2], result0[4]);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
+        return result0;
+      }
+      
+      function parse_fn_kw() {
+        var result0;
+        var pos0;
+        
+        pos0 = pos;
+        if (input.substr(pos, 2) === "fn") {
+          result0 = "fn";
+          pos += 2;
+        } else {
+          result0 = null;
+          if (reportFailures === 0) {
+            matchFailed("\"fn\"");
+          }
+        }
+        if (result0 !== null) {
+          result0 = (function(offset, k) { return {tag: 'keyword', value: k}; })(pos0, result0);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
+        return result0;
+      }
+      
+      function parse_fnblock() {
+        var result0, result1, result2, result3, result4;
+        var pos0, pos1;
+        
+        pos0 = pos;
+        pos1 = pos;
+        result0 = parse_fn_kw();
+        if (result0 !== null) {
+          result1 = parse_WS();
+          result1 = result1 !== null ? result1 : "";
+          if (result1 !== null) {
+            result2 = parse_identifierlist();
+            result2 = result2 !== null ? result2 : "";
+            if (result2 !== null) {
+              result3 = parse_WS();
+              result3 = result3 !== null ? result3 : "";
+              if (result3 !== null) {
+                result4 = parse_block();
+                if (result4 !== null) {
+                  result0 = [result0, result1, result2, result3, result4];
+                } else {
+                  result0 = null;
+                  pos = pos1;
+                }
+              } else {
+                result0 = null;
+                pos = pos1;
+              }
+            } else {
+              result0 = null;
+              pos = pos1;
+            }
+          } else {
+            result0 = null;
+            pos = pos1;
+          }
+        } else {
+          result0 = null;
+          pos = pos1;
+        }
+        if (result0 !== null) {
+          result0 = (function(offset, k, a, b) { return a ? [k, a, b] : [k, [], b]; })(pos0, result0[0], result0[2], result0[4]);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
+        return result0;
+      }
+      
+      function parse_if_kw() {
+        var result0;
+        var pos0;
+        
+        pos0 = pos;
+        if (input.substr(pos, 2) === "if") {
+          result0 = "if";
+          pos += 2;
+        } else {
+          result0 = null;
+          if (reportFailures === 0) {
+            matchFailed("\"if\"");
+          }
+        }
+        if (result0 !== null) {
+          result0 = (function(offset, k) { return {tag: 'keyword', value: k}; })(pos0, result0);
         }
         if (result0 === null) {
           pos = pos0;
@@ -960,15 +1155,7 @@ Elephant.parser = (function(){
         
         pos0 = pos;
         pos1 = pos;
-        if (input.substr(pos, 2) === "if") {
-          result0 = "if";
-          pos += 2;
-        } else {
-          result0 = null;
-          if (reportFailures === 0) {
-            matchFailed("\"if\"");
-          }
-        }
+        result0 = parse_if_kw();
         if (result0 !== null) {
           result1 = parse_WS();
           result1 = result1 !== null ? result1 : "";
@@ -978,7 +1165,7 @@ Elephant.parser = (function(){
               result3 = parse_WS();
               result3 = result3 !== null ? result3 : "";
               if (result3 !== null) {
-                result4 = parse_block();
+                result4 = parse_expr();
                 if (result4 !== null) {
                   result5 = parse_elseblock();
                   result5 = result5 !== null ? result5 : "";
@@ -1009,7 +1196,30 @@ Elephant.parser = (function(){
           pos = pos1;
         }
         if (result0 !== null) {
-          result0 = (function(offset, e, b, els) { return els ? ["if", e, b, els] : ["if", e, b, []]; })(pos0, result0[2], result0[4], result0[5]);
+          result0 = (function(offset, k, e, b, els) { return els ? [k, e, b, els] : [k, e, b, []]; })(pos0, result0[0], result0[2], result0[4], result0[5]);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
+        return result0;
+      }
+      
+      function parse_else_kw() {
+        var result0;
+        var pos0;
+        
+        pos0 = pos;
+        if (input.substr(pos, 4) === "else") {
+          result0 = "else";
+          pos += 4;
+        } else {
+          result0 = null;
+          if (reportFailures === 0) {
+            matchFailed("\"else\"");
+          }
+        }
+        if (result0 !== null) {
+          result0 = (function(offset, k) { return {tag: 'keyword', value: k}; })(pos0, result0);
         }
         if (result0 === null) {
           pos = pos0;
@@ -1026,20 +1236,12 @@ Elephant.parser = (function(){
         result0 = parse_WS();
         result0 = result0 !== null ? result0 : "";
         if (result0 !== null) {
-          if (input.substr(pos, 4) === "else") {
-            result1 = "else";
-            pos += 4;
-          } else {
-            result1 = null;
-            if (reportFailures === 0) {
-              matchFailed("\"else\"");
-            }
-          }
+          result1 = parse_else_kw();
           if (result1 !== null) {
             result2 = parse_WS();
             result2 = result2 !== null ? result2 : "";
             if (result2 !== null) {
-              result3 = parse_block();
+              result3 = parse_expr();
               if (result3 !== null) {
                 result0 = [result0, result1, result2, result3];
               } else {
@@ -1060,6 +1262,98 @@ Elephant.parser = (function(){
         }
         if (result0 !== null) {
           result0 = (function(offset, b) { return b; })(pos0, result0[3]);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
+        return result0;
+      }
+      
+      function parse_loop_kw() {
+        var result0;
+        var pos0;
+        
+        pos0 = pos;
+        if (input.substr(pos, 4) === "loop") {
+          result0 = "loop";
+          pos += 4;
+        } else {
+          result0 = null;
+          if (reportFailures === 0) {
+            matchFailed("\"loop\"");
+          }
+        }
+        if (result0 !== null) {
+          result0 = (function(offset, k) { return {tag: 'keyword', value: k}; })(pos0, result0);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
+        return result0;
+      }
+      
+      function parse_loopblock() {
+        var result0, result1, result2, result3, result4, result5, result6;
+        var pos0, pos1, pos2;
+        
+        pos0 = pos;
+        pos1 = pos;
+        result0 = parse_loop_kw();
+        if (result0 !== null) {
+          result1 = parse_WS();
+          result1 = result1 !== null ? result1 : "";
+          if (result1 !== null) {
+            result2 = parse_expr();
+            if (result2 !== null) {
+              pos2 = pos;
+              result3 = parse_WS();
+              result3 = result3 !== null ? result3 : "";
+              if (result3 !== null) {
+                result4 = parse_identifierlist();
+                if (result4 !== null) {
+                  result5 = parse_WS();
+                  result5 = result5 !== null ? result5 : "";
+                  if (result5 !== null) {
+                    result6 = parse_expr();
+                    if (result6 !== null) {
+                      result3 = [result3, result4, result5, result6];
+                    } else {
+                      result3 = null;
+                      pos = pos2;
+                    }
+                  } else {
+                    result3 = null;
+                    pos = pos2;
+                  }
+                } else {
+                  result3 = null;
+                  pos = pos2;
+                }
+              } else {
+                result3 = null;
+                pos = pos2;
+              }
+              result3 = result3 !== null ? result3 : "";
+              if (result3 !== null) {
+                result0 = [result0, result1, result2, result3];
+              } else {
+                result0 = null;
+                pos = pos1;
+              }
+            } else {
+              result0 = null;
+              pos = pos1;
+            }
+          } else {
+            result0 = null;
+            pos = pos1;
+          }
+        } else {
+          result0 = null;
+          pos = pos1;
+        }
+        if (result0 !== null) {
+          result0 = (function(offset, k, e1, e2) { return e2 ? [k, e2[3], e2[1], e1] : [k, e1]; })(pos0, result0[0], result0[2], result0[3]);
         }
         if (result0 === null) {
           pos = pos0;
@@ -1089,7 +1383,10 @@ Elephant.parser = (function(){
                     if (result0 === null) {
                       result0 = parse_integer();
                       if (result0 === null) {
-                        result0 = parse_atom();
+                        result0 = parse_boolean();
+                        if (result0 === null) {
+                          result0 = parse_atom();
+                        }
                       }
                     }
                   }
@@ -1137,7 +1434,9 @@ Elephant.parser = (function(){
       
       function parse_access_op() {
         var result0;
+        var pos0;
         
+        pos0 = pos;
         if (input.charCodeAt(pos) === 46) {
           result0 = ".";
           pos++;
@@ -1147,12 +1446,20 @@ Elephant.parser = (function(){
             matchFailed("\".\"");
           }
         }
+        if (result0 !== null) {
+          result0 = (function(offset, op) { return {value: op, tag: 'operator'}; })(pos0, result0);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
         return result0;
       }
       
       function parse_unary_op() {
         var result0;
+        var pos0;
         
+        pos0 = pos;
         if (input.charCodeAt(pos) === 126) {
           result0 = "~";
           pos++;
@@ -1162,12 +1469,20 @@ Elephant.parser = (function(){
             matchFailed("\"~\"");
           }
         }
+        if (result0 !== null) {
+          result0 = (function(offset, op) { return {value: op, tag: 'operator'}; })(pos0, result0);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
         return result0;
       }
       
       function parse_exp_op() {
         var result0;
+        var pos0;
         
+        pos0 = pos;
         if (input.charCodeAt(pos) === 94) {
           result0 = "^";
           pos++;
@@ -1177,12 +1492,20 @@ Elephant.parser = (function(){
             matchFailed("\"^\"");
           }
         }
+        if (result0 !== null) {
+          result0 = (function(offset, op) { return {value: op, tag: 'operator'}; })(pos0, result0);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
         return result0;
       }
       
       function parse_mult_op() {
         var result0;
+        var pos0;
         
+        pos0 = pos;
         if (input.charCodeAt(pos) === 42) {
           result0 = "*";
           pos++;
@@ -1225,12 +1548,20 @@ Elephant.parser = (function(){
             }
           }
         }
+        if (result0 !== null) {
+          result0 = (function(offset, op) { return {value: op, tag: 'operator'}; })(pos0, result0);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
         return result0;
       }
       
       function parse_add_op() {
         var result0;
+        var pos0;
         
+        pos0 = pos;
         if (input.substr(pos, 2) === "++") {
           result0 = "++";
           pos += 2;
@@ -1262,12 +1593,20 @@ Elephant.parser = (function(){
             }
           }
         }
+        if (result0 !== null) {
+          result0 = (function(offset, op) { return {value: op, tag: 'operator'}; })(pos0, result0);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
         return result0;
       }
       
       function parse_shift_op() {
         var result0;
+        var pos0;
         
+        pos0 = pos;
         if (input.substr(pos, 2) === "<<") {
           result0 = "<<";
           pos += 2;
@@ -1288,12 +1627,20 @@ Elephant.parser = (function(){
             }
           }
         }
+        if (result0 !== null) {
+          result0 = (function(offset, op) { return {value: op, tag: 'operator'}; })(pos0, result0);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
         return result0;
       }
       
       function parse_bitwise_op() {
         var result0;
+        var pos0;
         
+        pos0 = pos;
         if (input.charCodeAt(pos) === 38) {
           result0 = "&";
           pos++;
@@ -1325,12 +1672,20 @@ Elephant.parser = (function(){
             }
           }
         }
+        if (result0 !== null) {
+          result0 = (function(offset, op) { return {value: op, tag: 'operator'}; })(pos0, result0);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
         return result0;
       }
       
       function parse_comp_op() {
         var result0;
+        var pos0;
         
+        pos0 = pos;
         if (input.substr(pos, 2) === "<=") {
           result0 = "<=";
           pos += 2;
@@ -1417,12 +1772,20 @@ Elephant.parser = (function(){
             }
           }
         }
+        if (result0 !== null) {
+          result0 = (function(offset, op) { return {value: op, tag: 'operator'}; })(pos0, result0);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
         return result0;
       }
       
       function parse_lnot_op() {
         var result0;
+        var pos0;
         
+        pos0 = pos;
         if (input.substr(pos, 3) === "not") {
           result0 = "not";
           pos += 3;
@@ -1432,12 +1795,20 @@ Elephant.parser = (function(){
             matchFailed("\"not\"");
           }
         }
+        if (result0 !== null) {
+          result0 = (function(offset, op) { return {value: op, tag: 'operator'}; })(pos0, result0);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
         return result0;
       }
       
       function parse_land_op() {
         var result0;
+        var pos0;
         
+        pos0 = pos;
         if (input.substr(pos, 3) === "and") {
           result0 = "and";
           pos += 3;
@@ -1447,12 +1818,20 @@ Elephant.parser = (function(){
             matchFailed("\"and\"");
           }
         }
+        if (result0 !== null) {
+          result0 = (function(offset, op) { return {value: op, tag: 'operator'}; })(pos0, result0);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
         return result0;
       }
       
       function parse_lor_op() {
         var result0;
+        var pos0;
         
+        pos0 = pos;
         if (input.substr(pos, 2) === "or") {
           result0 = "or";
           pos += 2;
@@ -1473,12 +1852,20 @@ Elephant.parser = (function(){
             }
           }
         }
+        if (result0 !== null) {
+          result0 = (function(offset, op) { return {value: op, tag: 'operator'}; })(pos0, result0);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
         return result0;
       }
       
       function parse_assign_op() {
         var result0;
+        var pos0;
         
+        pos0 = pos;
         if (input.charCodeAt(pos) === 61) {
           result0 = "=";
           pos++;
@@ -1641,6 +2028,12 @@ Elephant.parser = (function(){
               }
             }
           }
+        }
+        if (result0 !== null) {
+          result0 = (function(offset, op) { return {value: op, tag: 'operator'}; })(pos0, result0);
+        }
+        if (result0 === null) {
+          pos = pos0;
         }
         return result0;
       }
@@ -2743,23 +3136,34 @@ Elephant.parser = (function(){
         
         pos0 = pos;
         pos1 = pos;
-        if (input.substr(pos, 6) === "number") {
-          result0 = "number";
-          pos += 6;
+        if (input.substr(pos, 7) === "integer") {
+          result0 = "integer";
+          pos += 7;
         } else {
           result0 = null;
           if (reportFailures === 0) {
-            matchFailed("\"number\"");
+            matchFailed("\"integer\"");
           }
         }
         if (result0 === null) {
-          if (input.substr(pos, 7) === "boolean") {
-            result0 = "boolean";
-            pos += 7;
+          if (input.substr(pos, 5) === "float") {
+            result0 = "float";
+            pos += 5;
           } else {
             result0 = null;
             if (reportFailures === 0) {
-              matchFailed("\"boolean\"");
+              matchFailed("\"float\"");
+            }
+          }
+          if (result0 === null) {
+            if (input.substr(pos, 7) === "boolean") {
+              result0 = "boolean";
+              pos += 7;
+            } else {
+              result0 = null;
+              if (reportFailures === 0) {
+                matchFailed("\"boolean\"");
+              }
             }
           }
         }
@@ -2932,7 +3336,7 @@ Elephant.parser = (function(){
           pos = pos1;
         }
         if (result0 !== null) {
-          result0 = (function(offset, d) { return parseInt(d.join(''), 10); })(pos0, result0[0]);
+          result0 = (function(offset, d) { return { value: parseInt(d.join(''), 10), tag: 'literal', type: { tag: 'basetype', name: 'integer' }}; })(pos0, result0[0]);
         }
         if (result0 === null) {
           pos = pos0;
@@ -3020,7 +3424,7 @@ Elephant.parser = (function(){
           pos = pos1;
         }
         if (result0 !== null) {
-          result0 = (function(offset, d, f) { return parseFloat(d.join('') + '.' + f.join(''), 10); })(pos0, result0[0], result0[2]);
+          result0 = (function(offset, d, f) { return { value: parseFloat(d.join('') + '.' + f.join(''), 10), tag: 'literal', type: { tag: 'basetype', name: 'float' }}; })(pos0, result0[0], result0[2]);
         }
         if (result0 === null) {
           pos = pos0;
@@ -3102,11 +3506,76 @@ Elephant.parser = (function(){
             pos = pos1;
           }
           if (result0 !== null) {
-            result0 = (function(offset, d, f) { return parseFloat(d.join('') + '.' + f.join(''), 10); })(pos0, result0[0], result0[2]);
+            result0 = (function(offset, d, f) { return { value: parseFloat(d.join('') + '.' + f.join(''), 10), tag: 'literal', type: { tag: 'basetype', name: 'float' }}; })(pos0, result0[0], result0[2]);
           }
           if (result0 === null) {
             pos = pos0;
           }
+        }
+        return result0;
+      }
+      
+      function parse_boolean() {
+        var result0, result1;
+        var pos0, pos1, pos2, pos3;
+        
+        pos0 = pos;
+        pos1 = pos;
+        if (input.substr(pos, 4) === "true") {
+          result0 = "true";
+          pos += 4;
+        } else {
+          result0 = null;
+          if (reportFailures === 0) {
+            matchFailed("\"true\"");
+          }
+        }
+        if (result0 === null) {
+          if (input.substr(pos, 5) === "false") {
+            result0 = "false";
+            pos += 5;
+          } else {
+            result0 = null;
+            if (reportFailures === 0) {
+              matchFailed("\"false\"");
+            }
+          }
+        }
+        if (result0 !== null) {
+          pos2 = pos;
+          reportFailures++;
+          pos3 = pos;
+          reportFailures++;
+          result1 = parse_AtomChar();
+          reportFailures--;
+          if (result1 === null) {
+            result1 = "";
+          } else {
+            result1 = null;
+            pos = pos3;
+          }
+          reportFailures--;
+          if (result1 !== null) {
+            result1 = "";
+            pos = pos2;
+          } else {
+            result1 = null;
+          }
+          if (result1 !== null) {
+            result0 = [result0, result1];
+          } else {
+            result0 = null;
+            pos = pos1;
+          }
+        } else {
+          result0 = null;
+          pos = pos1;
+        }
+        if (result0 !== null) {
+          result0 = (function(offset, b) { return { value: b === 'true', tag: 'literal', type: {tag: 'basetype', name: 'boolean'}}})(pos0, result0[0]);
+        }
+        if (result0 === null) {
+          pos = pos0;
         }
         return result0;
       }

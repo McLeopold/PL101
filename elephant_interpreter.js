@@ -128,108 +128,116 @@ Elephant.interpreter = (function () {
 
   var evalExpr = function (expr, env) {
     env = env || {bindings: {}, outer: {}};
+    // Look at head of list for operation
+    if (expr instanceof Array) {
+      if (expr.length === 0) {
+        return expr;
+      }
+      switch (expr[0].value) {
+        case 'do':
+          var result = 0;
+          for (var i = 1; i < expr.length; ++i) {
+            result = evalExpr(expr[i], env);
+          }
+          return result;
+        case 'list':
+          var result = [];
+          for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
+            result.push(evalExpr(expr[1][i], env));
+          }
+          return result;
+        case 'set':
+          var result = {};
+          for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
+            result[evalExpr(expr[1][i], env)] = true;
+          }
+          return result;
+        case 'map':
+          var result = {};
+          for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
+            result[evalExpr(expr[1][i][0], env)] = evalExpr(expr[1][i][1], env);
+          }
+          return result;
+        case 'quote':
+          if (expr.length !== 2) throw new Error("quote expects 1 parameter, got " + (expr.length - 1));
+          return expr[1];
+        case 'if':
+          var t = evalExpr(expr[1], env);
+          if (t === true) {
+            return evalExpr(expr[2], env);
+          } else {
+            return evalExpr(expr[3], env);
+          }
+        case 'fn':
+          return function () {
+            env = {bindings: {}, outer: env};
+            for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
+              add_binding(env, expr[1][i].value, arguments[i]);
+            }
+            return evalExpr(expr[2], env);
+          };
+        case 'scope':
+          return evalExpr(expr[1], {bindings: {}, outer: env});
+        case 'let':
+          for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
+            add_binding(env, expr[1][i][0], evalExpr(expr[1][i][1]));
+          }
+          return evalExpr(expr[2], env);
+        case '.':
+          return evalExpr(expr[1])[expr[2].value];
+        case 'define':
+        case ':=':
+          return add_binding(env, expr[1].value, evalExpr(expr[2], env));
+        case 'set!':
+        case '=':
+          return update(env, expr[1].value, evalExpr(expr[2], env));
+        case '^=':
+        case '*=':
+        case '/=':
+        case '%=':
+        case '//=':
+        case '+=':
+        case '++=':
+        case '-=':
+        case '<<=':
+        case '>>=':
+        case '&=':
+        case '|=':
+        case '><=':
+          var func = evalExpr(expr[0].slice(0, -1), env);
+          var val = func.call(env, evalExpr(expr[1], env), evalExpr(expr[2], env))
+          return update(env, expr[1], val);
+        default:
+          var func = evalExpr(expr[0], env);
+          var args = [];
+          for (var i = 1, ilen = expr.length; i < ilen; ++i) {
+            args.push(evalExpr(expr[i], env));
+          }
+          if (typeof func !== 'function') {
+            return func;
+          } else {
+            return func.apply(env, args);
+          }
+      }
+    }
     // Numbers evaluate to themselves
+    if (expr.tag === 'literal') {
+      return expr.value;
+    }
+    /*
     if (typeof expr === 'number' || typeof expr === 'boolean') {
       return expr;
     }
-    if (expr instanceof Array && expr.length === 0) {
-      return expr;
+    */
+    if (expr.tag === 'identifier' || expr.tag === 'operator') {
+      return lookup(env, expr.value);
     }
+    /*
     if (typeof expr === 'string') {
       return lookup(env, expr);
     }
-    // Look at head of list for operation
-    switch (expr[0]) {
-      case 'do':
-        var result = 0;
-        for (var i = 1; i < expr.length; ++i) {
-          result = evalExpr(expr[i], env);
-        }
-        return result;
-      case 'list':
-        var result = [];
-        for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
-          result.push(evalExpr(expr[1][i], env));
-        }
-        return result;
-      case 'set':
-        var result = {};
-        for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
-          result[evalExpr(expr[1][i], env)] = true;
-        }
-        return result;
-      case 'map':
-        var result = {};
-        for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
-          result[evalExpr(expr[1][i][0], env)] = evalExpr(expr[1][i][1], env);
-        }
-        return result;
-      case 'quote':
-        if (expr.length !== 2) throw new Error("quote expects 1 parameter, got " + (expr.length - 1));
-        return expr[1];
-      case 'if':
-        var t = evalExpr(expr[1], env);
-        if (t === true) {
-          return evalExpr(expr[2], env);
-        } else {
-          return evalExpr(expr[3], env);
-        }
-      case 'fn':
-        return function () {
-          env = {bindings: {}, outer: env};
-          for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
-            if (typeof expr[1][i] === 'object' && !(expr[1][i] instanceof Array)) {
-              add_binding(env, expr[1][i].name, arguments[i]);  
-            } else {
-              add_binding(env, expr[1][i], arguments[i]);  
-            }
-            
-          }
-          return evalExpr(expr[2], env);
-        };
-      case 'scope':
-        return evalExpr(expr[1], {bindings: {}, outer: env});
-      case 'let':
-        for (var i = 0, ilen = expr[1].length; i < ilen; ++i) {
-          add_binding(env, expr[1][i][0], evalExpr(expr[1][i][1]));
-        }
-        return evalExpr(expr[2], env);
-      case '.':
-        return evalExpr(expr[1])[expr[2]];
-      case 'define':
-      case ':=':
-        return add_binding(env, expr[1], evalExpr(expr[2], env));
-      case 'set!':
-      case '=':
-        return update(env, expr[1], evalExpr(expr[2], env));
-      case '^=':
-      case '*=':
-      case '/=':
-      case '%=':
-      case '//=':
-      case '+=':
-      case '++=':
-      case '-=':
-      case '<<=':
-      case '>>=':
-      case '&=':
-      case '|=':
-      case '><=':
-        var func = evalExpr(expr[0].slice(0, -1), env);
-        var val = func.call(env, evalExpr(expr[1], env), evalExpr(expr[2], env))
-        return update(env, expr[1], val);
-      default:
-        var func = evalExpr(expr[0], env);
-        var args = [];
-        for (var i = 1, ilen = expr.length; i < ilen; ++i) {
-          args.push(evalExpr(expr[i], env));
-        }
-        if (typeof func !== 'function') {
-          return func;
-        } else {
-          return func.apply(env, args);
-        }
-    }
+    */
+
   };
 
   return {
