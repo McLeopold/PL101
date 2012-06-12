@@ -26,6 +26,8 @@ task('deploy', ['clean', 'compile'], function () {
     .cp('tscheem/test/*', 'deploy/')
     .cp('tortoise/tortoise*', 'deploy/')
     .cp('tortoise/test/*', 'deploy/')
+    .cp('hare/hare*', 'deploy/')
+    .cp('hare/test/*', 'deploy/')
     .cp('elephant/test/*', 'deploy/')
     .cp('elephant/elephant*', 'deploy/')
     .cp('web/*', 'deploy/', {recursive: true})

@@ -7,14 +7,14 @@ exprs = WS? es:exprline* WS?
     } else if (es.length === 1) {
       return es[0];
     } else {
-      return ['do'].concat(es);
+      return [{value: 'do', tag: 'keyword'}].concat(es);
     }
   }
 
 exprline = es:exprpiece+ (EOL / &CloseBlock)
   { return es.length === 1 ? es[0] : es; }
 
-exprpiece = S? e:(infix / blocks / atomlist / list / set / map / quote / float / integer / atom) cs:(atomlist+)?
+exprpiece = S? e:(infix / blocks / atomlist / list / set / map / quote / float / integer / boolean / atom) cs:(atomlist+)?
   {
     var result = e;
     for (var i = 0, ilen = cs.length; i < ilen; ++i) {
@@ -23,7 +23,7 @@ exprpiece = S? e:(infix / blocks / atomlist / list / set / map / quote / float /
     return result;
   }
 
-expr = WS? e:(infix / blocks / atomlist / list / set / map / quote / float / integer / atom) cs:(atomlist+)?
+expr = WS? e:(infix / blocks / atomlist / list / set / map / quote / float / integer / boolean / atom) cs:(atomlist+)?
   {
     var result = e;
     for (var i = 0, ilen = cs.length; i < ilen; ++i) {
@@ -36,14 +36,24 @@ atomlist
   = OpenChar WS? es:expr* WS? CloseChar
     { return es; }
 
+identifierlist
+  = OpenChar WS? as:atom* WS? CloseChar
+    { return as; }
+
 atom = chars:AtomChar+ t:(WS type)?
-  { return t ? {name:chars.join(''), type:t[1]} : chars.join(''); }
+  { result = { value: chars.join(''), tag: 'identifier' };
+    if (t) { result.type = t; }
+    return result;
+  }
 
 quote = QuoteChar e:expr
   { return ['quote', e]; }
 
-list = OpenList WS? es:expr* CloseList
-  { return ['list', es]; }
+list = OpenList WS? es:expr* CloseList t:(WS type)?
+  { result = { tag: 'literal', value: es};
+    if (t) { result.type = t[1]; }
+    return result;
+  }
 
 set
   = OpenList WS? ',' WS? es:expr* WS? CloseList
@@ -61,29 +71,44 @@ mapentry = key:expr WS? ':' WS? value:expr
 // support for structured blocks using {}
 
   blocks
-    = scopeblock
-    / fnblock
+    = fnblock
+    / doblock
     / ifblock
+    / loopblock
+    / block
 
   block = OpenBlock WS? es:exprs CloseBlock
     { return es; }
 
-  scopeblock = b:block
-    { return ['scope', b]; }
+  do_kw = k:'do'
+    { return {tag: 'keyword', value: k}; }
+  doblock = k:do_kw WS? a:identifierlist? WS? b:block
+    { return a ? [k, a, b] : [k, [], b]; }
 
-  fnblock = "fn" WS? a:atomlist WS? b:block
-    { return ["fn", a, b]; }
+  fn_kw = k:'fn'
+    { return {tag: 'keyword', value: k}; }
+  fnblock = k:fn_kw WS? a:identifierlist? WS? b:block
+    { return a ? [k, a, b] : [k, [], b]; }
 
-  ifblock = "if" WS? e:expr WS? b:block els:elseblock?
-    { return els ? ["if", e, b, els] : ["if", e, b, []]; }
+  if_kw = k:'if'
+    { return {tag: 'keyword', value: k}; }
+  ifblock = k:if_kw WS? e:expr WS? b:expr els:elseblock?
+    { return els ? [k, e, b, els] : [k, e, b, []]; }
 
-  elseblock = WS? "else" WS? b:block
+  else_kw = k:'else'
+    { return {tag: 'keyword', value: k}; }
+  elseblock = WS? else_kw WS? b:expr
     { return b; }
+
+  loop_kw = k:'loop'
+    { return {tag: 'keyword', value: k}; }
+  loopblock = k:loop_kw WS? e1:expr e2:(WS? identifierlist WS? expr)?
+    { return e2 ? [k, e2[3], e2[1], e1] : [k, e1]; }
 
 // infix operators, higher precedence first
 
   infix = assign
-  primary = e:(blocks / atomlist / list / set / map / quote / float / integer / atom) cs:(atomlist+)?
+  primary = e:(blocks / atomlist / list / set / map / quote / float / integer / boolean / atom) cs:(atomlist+)?
   {
     var result = e;
     for (var i = 0, ilen = cs.length; i < ilen; ++i) {
@@ -91,24 +116,36 @@ mapentry = key:expr WS? ':' WS? value:expr
     }
     return result;
   }
-  access_op = "."
-  unary_op = "~"
-  exp_op = "^"
-  mult_op = "*" / "/" / "%" / "//"
-  add_op = "++" / "-" / "+"
-  shift_op = "<<" / ">>"
-  bitwise_op = "&" / "|" / "><"
-  comp_op = "<=" / ">=" / "!=" / "==" / "<" / ">" / "<=>" / "in"
-  lnot_op = "not"
-  land_op = "and"
-  lor_op = "or" / "xor"
+  access_op = op:('.')
+    { return {value: op, tag: 'operator'}; }
+  unary_op = op:('~')
+    { return {value: op, tag: 'operator'}; }
+  exp_op = op:('^')
+    { return {value: op, tag: 'operator'}; }
+  mult_op = op:('*' / '/' / '%' / '//')
+    { return {value: op, tag: 'operator'}; }
+  add_op = op:('++' / '-' / '+')
+    { return {value: op, tag: 'operator'}; }
+  shift_op = op:('<<' / '>>')
+    { return {value: op, tag: 'operator'}; }  
+  bitwise_op = op:('&' / '|' / '><')
+    { return {value: op, tag: 'operator'}; }
+  comp_op = op:('<=' / '>=' / '!=' / '==' / '<' / '>' / '<=>' / 'in')
+    { return {value: op, tag: 'operator'}; }
+  lnot_op = op:('not')
+    { return {value: op, tag: 'operator'}; }
+  land_op = op:('and')
+    { return {value: op, tag: 'operator'}; }
+  lor_op = op:('or' / 'xor')
+    { return {value: op, tag: 'operator'}; }
   assign_op
-    = "=" / ":="
-    / "^="
-    / "*=" / "/=" / "%=" / "//="
-    / "+=" / "-=" / "++="
-    / "<<=" / ">>="
-    / "&=" / "|=" / "><="
+    = op:('=' / ':='
+    / '^='
+    / '*=' / '/=' / '%=' / '//='
+    / '+=' / '-=' / '++='
+    / '<<=' / '>>='
+    / '&=' / '|=' / '><=')
+    { return {value: op, tag: 'operator'}; }
 
   access = head:primary tail:(WS? op:access_op WS? primary)*
     {
@@ -222,10 +259,10 @@ type = arrowtype / listtype / basetype
 listtype = OpenList WS? t:type WS? CloseList
   { return {tag: 'listtype', inner: t}; }
 
-arrowtype = OpenChar WS? l:type WS? "->" WS? r:type WS? CloseChar
+arrowtype = OpenChar WS? l:type WS? '->' WS? r:type WS? CloseChar
   { return {tag: 'arrowtype', left:l, right:r }; }
 
-basetype = t:("number" / "boolean") &(!(AtomChar))
+basetype = t:('integer' / 'float' / 'boolean') &(!(AtomChar))
   { return {tag: 'basetype', name: t}; }
 
 // character classes
@@ -234,12 +271,15 @@ basetype = t:("number" / "boolean") &(!(AtomChar))
   WS = (SpaceChar / EOLChar / Comment)+
   Comment = CommentChar LineChar*
   integer = d:[0-9]+ !(AtomChar)
-    { return parseInt(d.join(''), 10); }
+    { return { value: parseInt(d.join(''), 10), tag: 'literal', type: { tag: 'basetype', name: 'integer' }}; }
   float
     = d:[0-9]+ '.' f:[0-9]*
-      { return parseFloat(d.join('') + '.' + f.join(''), 10); }
+      { return { value: parseFloat(d.join('') + '.' + f.join(''), 10), tag: 'literal', type: { tag: 'basetype', name: 'float' }}; }
     / d:[0-9]* '.' f:[0-9]+
-      { return parseFloat(d.join('') + '.' + f.join(''), 10); }
+      { return { value: parseFloat(d.join('') + '.' + f.join(''), 10), tag: 'literal', type: { tag: 'basetype', name: 'float' }}; }
+  boolean
+    = b:('true' / 'false') &(!(AtomChar))
+      { return { value: b === 'true', tag: 'literal', type: {tag: 'basetype', name: 'boolean'}}}
 
   AtomChar = [0-9a-zA-Z_?!+\-=@#$%^&*/]
   LineChar = (!(EOLChar) SourceChar)
