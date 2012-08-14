@@ -30,6 +30,9 @@ body {
 	height: 200px;
 	overflow: auto;
 }
+#console p {
+	color: red;
+}
 #help {
 	margin: 10px;
 	float: left;

@@ -38,7 +38,12 @@ Tortoise.interpreter = (function () {
       random: Math.random,
       floor: Math.floor,
       width: function (d) { this.setWidth(d); },
-      color: function (r, g, b) { this.setColor(r, g, b); }
+      color: function (r, g, b) { this.setColor(r, g, b); },
+      log: function (msg) { myConsole.text(myConsole.text() + msg); },
+      logln: function (msg) { myConsole.text(myConsole.text() + msg + '\n'); },
+      'true': true,
+      'false': false
+
     },
     outer: {}
   };
@@ -60,7 +65,6 @@ Tortoise.interpreter = (function () {
   };
 
   var update = function (env, v, val) {
-    //console.log('update', env, v, val);
     if (env.bindings) {
       if (env.bindings.hasOwnProperty(v)) {
         env.bindings[v] = val;
@@ -74,7 +78,6 @@ Tortoise.interpreter = (function () {
   };
 
   var update_index = function (env, v, index, val) {
-    //console.log('update', env, v, val);
     if (env.bindings) {
       if (env.bindings.hasOwnProperty(v)) {
         var value = env.bindings[v];
@@ -127,7 +130,7 @@ Tortoise.interpreter = (function () {
     };
   };
 
-  var myTurtles;
+  var myTurtles, myConsole;
   var start = function (eval, expr, env, conts) {
     var states = [];
     spawn(states, eval, expr, env, conts, myTurtles && myTurtles.turtles[0]);
@@ -207,6 +210,8 @@ Tortoise.interpreter = (function () {
     if (typeof expr === 'number') {
       return thunk.call(this, conts[NEXT], expr);
     } else if (typeof expr === 'string') {
+      return thunk.call(this, conts[NEXT], expr);
+    } else if (typeof expr === 'boolean') {
       return thunk.call(this, conts[NEXT], expr);
     } else if (expr instanceof Array) {
       var i = -1
@@ -402,7 +407,6 @@ Tortoise.interpreter = (function () {
         return thunk.call(this, evalExpr, stmt.expr, env, [function (count) {
           var i = -1;
           return function repeatStmt (r) {
-            console.log(r);
             if (++i < count) {
               return thunk.call(this, evalStatements, stmt.body, env, [repeatStmt, conts[EXCEPT], conts[NEXT], repeatStmt]);
             } else {
@@ -624,13 +628,14 @@ Tortoise.interpreter = (function () {
             return 'unknown object';
         }
       } else {
-        return v.toString();
+        return v;
       }
     }
   };
-  var init = function (top, left, width, height) {
+  var init = function (top, left, width, height, con) {
     $(function () {
       myTurtles = new Turtles(top, left, width, height);
+      myConsole = con;
       obj.myTortoises = myTurtles;
     });
   };

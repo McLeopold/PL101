@@ -55,6 +55,8 @@ number
 string
     = '"' chars:[^"]* '"'
       { matches['string']++; return chars.join(''); }
+    / "'" chars:[^']* "'"
+      { matches['string']++; return chars.join(''); }
 
 array
     = '[' ws values:arglist ws ']'

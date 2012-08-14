@@ -2,17 +2,51 @@
 var log_console = function(msg) {
   $('#console').append('<p>' + msg + '</p>');
 };
-var INDENT = '   ';
+var INDENT = '  ';
 var nice_list = function (data, indent) {
   if (indent === undefined) indent = 2;
   if (!(data instanceof Array)) {
-    return JSON.stringify(data)
+    if (data && data.tag) {
+      switch (data.tag) {
+        case 'ignore':
+          return nice_list(data.body, indent);
+        case 'call':
+          if (data.args.length > 0) {
+            return '{"tag":"call","name":' + data.name + ',"args":' + nice_list(data.args, indent + 1) + '}';
+          } else {
+            return '{"tag":"call","name":' + data.name + ',"args":[]}';
+          }
+        case 'hatch':
+          return '{"tag":"hatch","body":' + nice_list(data.body, indent + 1) + '}';
+        case 'repeat':
+          return '{"tag":"repeat","expr":' + data.expr + ',"body":' + nice_list(data.body, indent + 1) + '}';
+        case 'if':
+          if (data.else) {
+            return '{"tag":"if","expr":' + data.expr + ',"body":' + nice_list(data.body, indent + 1) +
+                   ',"else":' + nice_list(data.else, indent + 1) + '}';
+          } else {
+            return '{"tag":"if","expr":' + data.expr + ',"body":' + nice_list(data.body, indent + 1) + '}';
+          }
+        case 'define':
+          return '{"tag":"define","name":"' + data.name + '","args",' + JSON.stringify(data.args) + ',"body",' + nice_list(data.body, indent + 1) + '}';
+        default:
+          if (data.left && data.right) {
+            return '{"tag":"' + data.tag + '",\n' + Array(indent).join(INDENT) +
+                   ' "left":' + nice_list(data.left, indent+1) + ',\n' + Array(indent).join(INDENT) +
+                   ' "right":' + nice_list(data.right, indent+1) + '\n' + Array(indent).join(INDENT) + '}'
+          } else {
+            return JSON.stringify(data);
+          }
+      }
+    } else {
+      return JSON.stringify(data)
+    }
   } else {
     // assume list
     return '[\n' +
            Array(indent).join(INDENT) +
            data.map(function (data) {
-             return nice_list(data, indent + 1);
+             return nice_list(data, indent);
            }).join(',\n' + Array(indent).join(INDENT)) +
            '\n' + Array(indent-1).join(INDENT) + ']'
            ;
@@ -49,7 +83,7 @@ $(function() {
     }(sample_name));
   };
   myCodeMirror.setValue(Tortoise.samples['multi-maze'][0]);
-  Tortoise.interpreter.init(8, 84, 400, 400);
+  Tortoise.interpreter.init(8, 84, 400, 400, $('#console'));
   $('#check').click(function() {
     myCodeMirror.save();
     var user_text = $('#input').val();
@@ -71,7 +105,7 @@ $(function() {
     var parsed = Tortoise.parser.parse(user_text);
     var env = {};
     var result = Tortoise.interpreter.evalTortoise(parsed, env);
-    log_console(Tortoise.interpreter.value(result));
+    //log_console(Tortoise.interpreter.value(result));
     Tortoise.interpreter.myTortoises.hide();
   });
   var draw_start = function() {
