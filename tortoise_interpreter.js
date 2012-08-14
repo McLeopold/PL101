@@ -128,15 +128,24 @@ Tortoise.interpreter = (function () {
   };
 
   var myTurtles;
-  var start = function (eval, expr, env, cont, xcont) {
+  var start = function (eval, expr, env, conts) {
     var states = [];
-    spawn(states, eval, expr, env, cont, xcont, myTurtles && myTurtles.turtles[0]);
+    spawn(states, eval, expr, env, conts, myTurtles && myTurtles.turtles[0]);
     return states;
   };
 
-  var spawn = function (states, eval, expr, env, cont, xcont, turtle) {
-    var state = {};
-    state.data = eval.call(state, expr, env, cont || thunkValue, xcont || thunkValue);
+  var spawn = function (states, eval, expr, env, conts, turtle) {
+    var state = {}
+      , i
+    ;
+    if (conts) {
+      for (i = 0, ilen = conts.length; i < ilen; ++i) {
+        conts[i] = conts[i] || thunkValue;
+      }
+    } else {
+      conts = [thunkValue, thunkValue, thunkValue, thunkValue];
+    }
+    state.data = eval.call(state, expr, env, conts);
     state.done = false;
     state.turtle = turtle;
     state.turtles = myTurtles;
@@ -151,7 +160,7 @@ Tortoise.interpreter = (function () {
         if (state.data.tag === 'value') {
           state.data = state.data.val;
           state.done = true;
-          state.turtle.hide();
+          state.turtle && state.turtle.hide();
         } else if (state.data.tag === 'thunk') {
           state.data = state.data.func.apply(state, state.data.args);
         } else {
@@ -170,27 +179,34 @@ Tortoise.interpreter = (function () {
     return true;
   };
 
-  var evalFull = function (eval, expr, env, cont, xcont) {
-    var state = start(eval, expr, env, cont, xcont);
-    while (!finished(state)) {
-      step(state);
+  var evalFull = function (eval, expr, env, conts) {
+    var states = start(eval, expr, env, conts);
+    while (!finished(states)) {
+      step(states);
     }
-    return state.data;
+    return states[0].data;
   }
 
-  var evalTortoiseString = function (prg, env, cont, xcont) {
+  var evalTortoiseString = function (prg, env, conts) {
     env = env || {};
     var expr = parse(prg);
     return evalFull(evalStatements, expr, env);
   };
 
+  // conts is a list of continuations that point to possible next statements
+  // [next, exception, break, continue]
+  var NEXT = 0
+    , EXCEPT = 1
+    , BREAK = 2
+    , CONTINUE = 3
+  ;
   // Evaluate a Tortoise expression, return value
-  var evalExpr = function (expr, env, cont, xcont) {
+  var evalExpr = function (expr, env, conts) {
     // Numbers evaluate to themselves
     if (typeof expr === 'number') {
-      return thunk.call(this, cont, expr);
+      return thunk.call(this, conts[NEXT], expr);
     } else if (typeof expr === 'string') {
-      return thunk.call(this, cont, expr);
+      return thunk.call(this, conts[NEXT], expr);
     } else if (expr instanceof Array) {
       var i = -1
         , ilen = expr.length
@@ -201,9 +217,9 @@ Tortoise.interpreter = (function () {
           values[i] = r;
         }
         if (++i < ilen) {
-          return thunk.call(this, evalExpr, expr[i], env, nextArg, xcont);
+          return thunk.call(this, evalExpr, expr[i], env, [nextArg].concat(conts.slice(1)));
         } else {
-          return thunk.call(this, cont, values);
+          return thunk.call(this, conts[NEXT], values);
         }
       }.call(this);
     }
@@ -211,88 +227,86 @@ Tortoise.interpreter = (function () {
     switch(expr.tag) {
       // Simple built-in binary operations
       case '&&':
-        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
+        return thunk.call(this, evalExpr, expr.left, env, [function (v1) {
           if (v1) {
-            return thunk.call(this, evalExpr, expr.right, env, function (v2) {
-              return thunk.call(this, cont, v2);
-            }, xcont);
+            return thunk.call(this, evalExpr, expr.right, env, [function (v2) {
+              return thunk.call(this, conts[NEXT], v2);
+            }].concat(conts.slice(1)));
           } else {
-            return thunk.call(this, cont, v1);
+            return thunk.call(this, conts[NEXT], v1);
           }
-        }, xcont);
+        }].concat(conts.slice(1)));
       case '||':
-        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
+        return thunk.call(this, evalExpr, expr.left, env, [function (v1) {
           if (v1) {
-            return thunk.call(this, cont, v1);
+            return thunk.call(this, conts[NEXT], v1);
           } else {
-            return thunk.call(this, evalExpr, expr.right, env, function (v2) {
-              return thunk.call(this, cont, v2);
-            }, xcont);
+            return thunk.call(this, evalExpr, expr.right, env, [function (v2) {
+              return thunk.call(this, conts[NEXT], v2);
+            }].concat(conts.slice(1)));
           }
-        }, xcont);
+        }].concat(conts.slice(1)));
       case '==':
-        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
-          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
-            return thunk.call(this, cont, v1 === v2);
-          }, xcont);
-        }, xcont);
+        return thunk.call(this, evalExpr, expr.left, env, [function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, [function (v2) {
+            return thunk.call(this, conts[NEXT], v1 === v2);
+          }].concat(conts.slice(1)));
+        }].concat(conts.slice(1)));
       case '!=':
-        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
-          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
-            return thunk.call(this, cont, v1 !== v2);
-          }, xcont);
-        }, xcont);
+        return thunk.call(this, evalExpr, expr.left, env, [function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, [function (v2) {
+            return thunk.call(this, conts[NEXT], v1 !== v2);
+          }].concat(conts.slice(1)));
+        }].concat(conts.slice(1)));
       case '<':
-        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
-          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
-            return thunk.call(this, cont, v1 < v2);
-          }, xcont);
-        }, xcont);
+        return thunk.call(this, evalExpr, expr.left, env, [function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, [function (v2) {
+            return thunk.call(this, conts[NEXT], v1 < v2);
+          }].concat(conts.slice(1)));
+        }].concat(conts.slice(1)));
       case '>':
-        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
-          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
-            return thunk.call(this, cont, v1 > v2);
-          }, xcont);
-        }, xcont);
+        return thunk.call(this, evalExpr, expr.left, env, [function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, [function (v2) {
+            return thunk.call(this, conts[NEXT], v1 > v2);
+          }].concat(conts.slice(1)));
+        }].concat(conts.slice(1)));
       case '<=':
-        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
-          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
-            return thunk.call(this, cont, v1 <= v2);
-          }, xcont);
-        }, xcont);
+        return thunk.call(this, evalExpr, expr.left, env, [function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, [function (v2) {
+            return thunk.call(this, conts[NEXT], v1 <= v2);
+          }].concat(conts.slice(1)));
+        }].concat(conts.slice(1)));
       case '>=':
-        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
-          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
-            return thunk.call(this, cont, v1 >= v2);
-          }, xcont);
-        }, xcont);
+        return thunk.call(this, evalExpr, expr.left, env, [function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, [function (v2) {
+            return thunk.call(this, conts[NEXT], v1 >= v2);
+          }].concat(conts.slice(1)));
+        }].concat(conts.slice(1)));
+
       case '+':
-        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
-          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
-            return thunk.call(this, cont, v1 + v2);
-          }, xcont);
-        }, xcont);
+        return thunk.call(this, evalExpr, expr.left, env, [function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, [function (v2) {
+            return thunk.call(this, conts[NEXT], v1 + v2);
+          }].concat(conts.slice(1)));
+        }].concat(conts.slice(1)));
       case '-':
-        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
-          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
-            return thunk.call(this, cont, v1 - v2);
-          }, xcont);
-        }, xcont);
+        return thunk.call(this, evalExpr, expr.left, env, [function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, [function (v2) {
+            return thunk.call(this, conts[NEXT], v1 - v2);
+          }].concat(conts.slice(1)));
+        }].concat(conts.slice(1)));
       case '*':
-        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
-          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
-            return thunk.call(this, cont, v1 * v2);
-          }, xcont);
-        }, xcont);
+        return thunk.call(this, evalExpr, expr.left, env, [function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, [function (v2) {
+            return thunk.call(this, conts[NEXT], v1 * v2);
+          }].concat(conts.slice(1)));
+        }].concat(conts.slice(1)));
       case '/':
-        return thunk.call(this, evalExpr, expr.left, env, function (v1) {
-          return thunk.call(this, evalExpr, expr.right, env, function (v2) {
-            if (v2 === 0)
-              return thunk.call(this, xcont, 'Exception');
-            else
-              return thunk.call(this, cont, v1 / v2);
-          }, xcont);
-        }, xcont);
+        return thunk.call(this, evalExpr, expr.left, env, [function (v1) {
+          return thunk.call(this, evalExpr, expr.right, env, [function (v2) {
+            return thunk.call(this, conts[NEXT], v1 / v2);
+          }].concat(conts.slice(1)));
+        }].concat(conts.slice(1)));
       case 'call':
         var func = lookup(env, expr.name)
           , i = -1
@@ -304,14 +318,14 @@ Tortoise.interpreter = (function () {
             eval_args[i] = r;
           }
           if (++i < ilen) {
-            return thunk.call(this, evalExpr, expr.args[i], env, nextArg, xcont);
+            return thunk.call(this, evalExpr, expr.args[i], env, [nextArg].concat(conts.slice(1)));
           } else {
             if (typeof func === 'function') {
-              return thunk.call(this, cont, func.apply(this.turtle, eval_args));
+              return thunk.call(this, conts[NEXT], func.apply(this.turtle, eval_args));
             } else {
               return thunk.call(this, evalStatements, func.body, 
                 add_bindings({bindings: {}, outer: func.env}, func.args, eval_args),
-                cont, xcont);
+                conts);
             }
           }
         }.call(this);
@@ -325,35 +339,34 @@ Tortoise.interpreter = (function () {
             value = value[r];
           }
           if (++i < ilen) {
-            return thunk.call(this, evalExpr, expr.index[i], env, nextArg, xcont);
+            return thunk.call(this, evalExpr, expr.index[i], env, [nextArg].concat(conts.slice(1)));
           } else {
-            return thunk.call(this, cont, value);
+            return thunk.call(this, conts[NEXT], value);
           }
         }.call(this);
       case 'ident':
-        return thunk.call(this, cont, lookup(env, expr.name));
+        return thunk.call(this, conts[NEXT], lookup(env, expr.name));
 
     }
   };
 
-  var evalStatement = function (stmt, env, cont, xcont) {
-    //console.log('evalStatement', stmt, env, cont, xcont);
+  var evalStatement = function (stmt, env, conts) {
     var val = undefined;
     // Statements always have tags
     switch(stmt.tag) {
       // A single expression
       case 'ignore':
         // Just evaluate expression
-        return thunk.call(this, evalExpr, stmt.body, env, cont, xcont);
+        return thunk.call(this, evalExpr, stmt.body, env, conts);
       // Declare new variable
       case 'var':
         // New variable gets default value of 0
-        return thunk.call(this, cont, add_binding(env, stmt.name, 0));
+        return thunk.call(this, conts[NEXT], add_binding(env, stmt.name, 0));
       case ':=':
         // Evaluate right hand side
-        return thunk.call(this, evalExpr, stmt.right, env, function (v) {
-          return thunk.call(this, cont, update(env, stmt.left, v));
-        }, xcont);
+        return thunk.call(this, evalExpr, stmt.right, env, [function (v) {
+          return thunk.call(this, conts[NEXT], update(env, stmt.left, v));
+        }].concat(conts.slice(1)));
       case '[]=':
         // Evaluate right hand side
         var i = -1
@@ -365,69 +378,73 @@ Tortoise.interpreter = (function () {
             values[i] = r;
           }
           if (++i < ilen) {
-            return thunk.call(this, evalExpr, stmt.index[i], env, nextArg, xcont);
+            return thunk.call(this, evalExpr, stmt.index[i], env, [nextArg].concat(conts.slice(1)));
           } else {
-            return thunk.call(this, evalExpr, stmt.right, env, function (v) {
-              return thunk.call(this, cont, update_index(env, stmt.left, values, v));
-            }, xcont);
+            return thunk.call(this, evalExpr, stmt.right, env, [function (v) {
+              return thunk.call(this, conts[NEXT], update_index(env, stmt.left, values, v));
+            }].concat(conts.slice(1)));
           }
         }.call(this);
-
       case 'if':
-        return thunk.call(this, evalExpr, stmt.expr, env, function (v) {
+        return thunk.call(this, evalExpr, stmt.expr, env, [function (v) {
           if (v) {
-            return thunk.call(this, evalStatements, stmt.body, env, cont, xcont);
+            return thunk.call(this, evalStatements, stmt.body, env, conts);
           } else {
             if (stmt.else) {
-              return thunk.call(this, evalStatements, stmt.else, env, cont, xcont);
+              return thunk.call(this, evalStatements, stmt.else, env, conts);
             } else {
-              return thunk.call(this, cont);
+              return thunk.call(this, conts[NEXT]);
             }
           }
-        }, xcont);           
+        }].concat(conts.slice(1)));           
       case 'repeat':
-        return thunk.call(this, evalExpr, stmt.expr, env, function (count) {
+        return thunk.call(this, evalExpr, stmt.expr, env, [function (count) {
           var i = -1;
           return function repeatStmt (r) {
+            console.log(r);
             if (++i < count) {
-              return thunk.call(this, evalStatements, stmt.body, env, repeatStmt, xcont);
+              return thunk.call(this, evalStatements, stmt.body, env, [repeatStmt, conts[EXCEPT], conts[NEXT], repeatStmt]);
             } else {
-              return thunk.call(this, cont, r);
+              return thunk.call(this, conts[NEXT], r);
             }
           }();
-        }, xcont);
+        }].concat(conts.slice(1)));
       case 'define':
-        return thunk.call(this, cont, add_binding(env, stmt.name, {
+        return thunk.call(this, conts[NEXT], add_binding(env, stmt.name, {
           body: stmt.body,
           env: env,
           args: stmt.args
         }));
       case 'throw':
-        return thunk.call(this, evalExpr, stmt.expr, env, xcont, xcont);
+        return thunk.call(this, evalExpr, stmt.expr, env, [conts[EXCEPT]].concat(null, conts.slice(2)));
+      case 'break':
+        return thunk.call(this, conts[BREAK]); // evalExpr, stmt.expr, env, [conts[BREAK]].concat(conts[1], null, conts.slice(3)));
+      case 'continue':
+        return thunk.call(this, conts[CONTINUE]); // evalExpr, stmt.expr, env, [conts[CONTINUE]].concat(conts[1], conts[2], null, conts.slice(4)));
       case 'try':
-        return thunk.call(this, evalStatements, stmt.body, env, cont, function (v) {
+        return thunk.call(this, evalStatements, stmt.body, env, conts[NEXT].concat(function (v) {
           if (stmt.catch) {
-            return thunk.call(this, evalStatements, stmt.catch, env, cont, xcont);
+            return thunk.call(this, evalStatements, stmt.catch, env, conts);
           } else {
-            return thunk.call(this, cont, v);
+            return thunk.call(this, conts[NEXT], v);
           }
-        });
+        }, conts.slice(2)));
       case 'hatch':
         var new_turtle = this.turtles.clone(this.turtle);
-        spawn(this.states, evalStatements, stmt.body, env, null, null, new_turtle);
-        return thunk.call(this, cont, 0); // TODO: return thread indentifier
+        spawn(this.states, evalStatements, stmt.body, env, [null, null, null, null], new_turtle);
+        return thunk.call(this, conts[NEXT], 0); // TODO: return thread indentifier
     }
   };
 
-  var evalStatements = function (seq, env, cont, xcont) {
+  var evalStatements = function (seq, env, conts) {
     var i = -1
       , ilen = seq.length
     ;
     return function evalNext (r) {
       if (++i < ilen) {
-        return thunk.call(this, evalStatement, seq[i], env, evalNext, xcont);
+        return thunk.call(this, evalStatement, seq[i], env, [evalNext].concat(conts.slice(1)));
       } else {
-        return thunk.call(this, cont, r);
+        return thunk.call(this, conts[NEXT], r);
       }
     }.call(this);
   };
