@@ -38,7 +38,12 @@ Tortoise.interpreter = (function () {
       random: Math.random,
       floor: Math.floor,
       width: function (d) { this.setWidth(d); },
-      color: function (r, g, b) { this.setColor(r, g, b); }
+      color: function (r, g, b) { this.setColor(r, g, b); },
+      log: function (msg) { myConsole.text(myConsole.text() + msg); },
+      logln: function (msg) { myConsole.text(myConsole.text() + msg + '\n'); },
+      'true': true,
+      'false': false
+
     },
     outer: {}
   };
@@ -60,7 +65,6 @@ Tortoise.interpreter = (function () {
   };
 
   var update = function (env, v, val) {
-    //console.log('update', env, v, val);
     if (env.bindings) {
       if (env.bindings.hasOwnProperty(v)) {
         env.bindings[v] = val;
@@ -74,7 +78,6 @@ Tortoise.interpreter = (function () {
   };
 
   var update_index = function (env, v, index, val) {
-    //console.log('update', env, v, val);
     if (env.bindings) {
       if (env.bindings.hasOwnProperty(v)) {
         var value = env.bindings[v];
@@ -127,7 +130,7 @@ Tortoise.interpreter = (function () {
     };
   };
 
-  var myTurtles;
+  var myTurtles, myConsole;
   var start = function (eval, expr, env, conts) {
     var states = [];
     spawn(states, eval, expr, env, conts, myTurtles && myTurtles.turtles[0]);
@@ -143,7 +146,7 @@ Tortoise.interpreter = (function () {
         conts[i] = conts[i] || thunkValue;
       }
     } else {
-      conts = [thunkValue, thunkValue, thunkValue, thunkValue];
+      conts = [thunkValue, thunkValue, thunkValue, thunkValue, thunkValue];
     }
     state.data = eval.call(state, expr, env, conts);
     state.done = false;
@@ -199,6 +202,7 @@ Tortoise.interpreter = (function () {
     , EXCEPT = 1
     , BREAK = 2
     , CONTINUE = 3
+    , RETURN = 4
   ;
   // Evaluate a Tortoise expression, return value
   var evalExpr = function (expr, env, conts) {
@@ -206,6 +210,8 @@ Tortoise.interpreter = (function () {
     if (typeof expr === 'number') {
       return thunk.call(this, conts[NEXT], expr);
     } else if (typeof expr === 'string') {
+      return thunk.call(this, conts[NEXT], expr);
+    } else if (typeof expr === 'boolean') {
       return thunk.call(this, conts[NEXT], expr);
     } else if (expr instanceof Array) {
       var i = -1
@@ -325,7 +331,7 @@ Tortoise.interpreter = (function () {
             } else {
               return thunk.call(this, evalStatements, func.body, 
                 add_bindings({bindings: {}, outer: func.env}, func.args, eval_args),
-                conts);
+                [conts[0], conts[1], null, null, conts[0]]);
             }
           }
         }.call(this);
@@ -401,7 +407,6 @@ Tortoise.interpreter = (function () {
         return thunk.call(this, evalExpr, stmt.expr, env, [function (count) {
           var i = -1;
           return function repeatStmt (r) {
-            console.log(r);
             if (++i < count) {
               return thunk.call(this, evalStatements, stmt.body, env, [repeatStmt, conts[EXCEPT], conts[NEXT], repeatStmt]);
             } else {
@@ -413,7 +418,9 @@ Tortoise.interpreter = (function () {
         return thunk.call(this, conts[NEXT], add_binding(env, stmt.name, {
           body: stmt.body,
           env: env,
-          args: stmt.args
+          args: stmt.args,
+          name: stmt.name,
+          type: 'function'
         }));
       case 'throw':
         return thunk.call(this, evalExpr, stmt.expr, env, [conts[EXCEPT]].concat(null, conts.slice(2)));
@@ -421,6 +428,8 @@ Tortoise.interpreter = (function () {
         return thunk.call(this, conts[BREAK]); // evalExpr, stmt.expr, env, [conts[BREAK]].concat(conts[1], null, conts.slice(3)));
       case 'continue':
         return thunk.call(this, conts[CONTINUE]); // evalExpr, stmt.expr, env, [conts[CONTINUE]].concat(conts[1], conts[2], null, conts.slice(4)));
+      case 'return':
+        return thunk.call(this, conts[RETURN], stmt.expr);
       case 'try':
         return thunk.call(this, evalStatements, stmt.body, env, conts[NEXT].concat(function (v) {
           if (stmt.catch) {
@@ -609,11 +618,24 @@ Tortoise.interpreter = (function () {
       return evalFull(evalStatements, expr, env);
     },
     evalTortoiseString: evalTortoiseString,
-    myTortoises: myTurtles
+    myTortoises: myTurtles,
+    value: function (v) {
+      if (typeof v === 'object') {
+        switch (v.type) {
+          case 'function':
+            return '[function ' + v.name + ']';
+          default:
+            return 'unknown object';
+        }
+      } else {
+        return v;
+      }
+    }
   };
-  var init = function (top, left, width, height) {
+  var init = function (top, left, width, height, con) {
     $(function () {
       myTurtles = new Turtles(top, left, width, height);
+      myConsole = con;
       obj.myTortoises = myTurtles;
     });
   };
