@@ -95,6 +95,8 @@ statement
         { matches['statement']++; return { tag:"break" }; }
     / "continue" ws ";" ws
         { matches['statement']++; return { tag:"continue" }; }
+    / "return" ws expr:expression ws ";" ws
+        { matches['statement']++; return { tag:"return", expr: expr }; }
     / "try" ws
         "{" ws body:statements ws "}" ws
         "catch" ws "{" ws catchbody:statements ws "}" ws

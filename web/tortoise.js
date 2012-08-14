@@ -68,21 +68,10 @@ $(function() {
     myCodeMirror.save();
     var user_text = $('#input').val();
     $('#console').html(''); // clear console
-//    try {
-      var parsed = Tortoise.parser.parse(user_text);
-//      try {
-        var env = {};
-        var result = Tortoise.interpreter.evalTortoise(parsed, env);
-        log_console(JSON.stringify(result));
-        //log_console(JSON.stringify(env));
-//      }
-//      catch(e) {
-//        log_console('Eval Error: ' + e);
-//      }
-//    }
-//    catch(e) {
-//      log_console('Parse Error: ' + e);
-//    }
+    var parsed = Tortoise.parser.parse(user_text);
+    var env = {};
+    var result = Tortoise.interpreter.evalTortoise(parsed, env);
+    log_console(Tortoise.interpreter.value(result));
     Tortoise.interpreter.myTortoises.hide();
   });
   var draw_start = function() {

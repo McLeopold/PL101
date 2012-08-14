@@ -143,7 +143,7 @@ Tortoise.interpreter = (function () {
         conts[i] = conts[i] || thunkValue;
       }
     } else {
-      conts = [thunkValue, thunkValue, thunkValue, thunkValue];
+      conts = [thunkValue, thunkValue, thunkValue, thunkValue, thunkValue];
     }
     state.data = eval.call(state, expr, env, conts);
     state.done = false;
@@ -199,6 +199,7 @@ Tortoise.interpreter = (function () {
     , EXCEPT = 1
     , BREAK = 2
     , CONTINUE = 3
+    , RETURN = 4
   ;
   // Evaluate a Tortoise expression, return value
   var evalExpr = function (expr, env, conts) {
@@ -325,7 +326,7 @@ Tortoise.interpreter = (function () {
             } else {
               return thunk.call(this, evalStatements, func.body, 
                 add_bindings({bindings: {}, outer: func.env}, func.args, eval_args),
-                conts);
+                [conts[0], conts[1], null, null, conts[0]]);
             }
           }
         }.call(this);
@@ -413,7 +414,9 @@ Tortoise.interpreter = (function () {
         return thunk.call(this, conts[NEXT], add_binding(env, stmt.name, {
           body: stmt.body,
           env: env,
-          args: stmt.args
+          args: stmt.args,
+          name: stmt.name,
+          type: 'function'
         }));
       case 'throw':
         return thunk.call(this, evalExpr, stmt.expr, env, [conts[EXCEPT]].concat(null, conts.slice(2)));
@@ -421,6 +424,8 @@ Tortoise.interpreter = (function () {
         return thunk.call(this, conts[BREAK]); // evalExpr, stmt.expr, env, [conts[BREAK]].concat(conts[1], null, conts.slice(3)));
       case 'continue':
         return thunk.call(this, conts[CONTINUE]); // evalExpr, stmt.expr, env, [conts[CONTINUE]].concat(conts[1], conts[2], null, conts.slice(4)));
+      case 'return':
+        return thunk.call(this, conts[RETURN], stmt.expr);
       case 'try':
         return thunk.call(this, evalStatements, stmt.body, env, conts[NEXT].concat(function (v) {
           if (stmt.catch) {
@@ -609,7 +614,19 @@ Tortoise.interpreter = (function () {
       return evalFull(evalStatements, expr, env);
     },
     evalTortoiseString: evalTortoiseString,
-    myTortoises: myTurtles
+    myTortoises: myTurtles,
+    value: function (v) {
+      if (typeof v === 'object') {
+        switch (v.type) {
+          case 'function':
+            return '[function ' + v.name + ']';
+          default:
+            return 'unknown object';
+        }
+      } else {
+        return v.toString();
+      }
+    }
   };
   var init = function (top, left, width, height) {
     $(function () {
