@@ -70,6 +70,12 @@ $(function() {
     theme: "neat",
     lineNumbers: true
   });
+  var error_highlight;
+  function clear_error () {
+    if (error_highlight) {
+      myCodeMirror.setLineClass(error_highlight, null, null);
+    }
+  }
   // load sample buttons
   var sample_div = $('#samples');
   for (sample_name in Tortoise.samples) {
@@ -85,6 +91,7 @@ $(function() {
   myCodeMirror.setValue(Tortoise.samples['multi-maze'][0]);
   Tortoise.interpreter.init(8, 84, 400, 400, $('#console'));
   $('#check').click(function() {
+    clear_error();
     myCodeMirror.save();
     var user_text = $('#input').val();
     $('#console').html(''); // clear console
@@ -97,6 +104,7 @@ $(function() {
     }
   });
   $('#run').click(function() {
+    clear_error();
     state = {data: null, done: true};
     Tortoise.interpreter.myTortoises.clear();
     myCodeMirror.save();
@@ -104,7 +112,14 @@ $(function() {
     $('#console').html(''); // clear console
     var parsed = Tortoise.parser.parse(user_text);
     var env = {};
-    var result = Tortoise.interpreter.evalTortoise(parsed, env);
+    try {
+      var result = Tortoise.interpreter.evalTortoise(parsed, env);
+    } catch (e) {
+      log_console('Error: ' + e.message + '\n  at line ' + e.loc[0] + ', column ' + e.loc[1]);
+      //var m = myCodeMirror.markText({line: e.loc[0]-1, ch: e.loc[1]+1}, {line: e.loc[0]-1, ch: e.loc[1]+5}, 'cm-error');
+      //myCodeMirror.setMarker(e.loc[0]-1, '\u21e8');
+      error_highlight = myCodeMirror.setLineClass(e.loc[0]-1, null, 'error');
+    }
     //log_console(Tortoise.interpreter.value(result));
     Tortoise.interpreter.myTortoises.hide();
   });
@@ -145,6 +160,7 @@ $(function() {
   $('#start').click(draw_start);
   $('#step').click(draw_step);
   $('#play').click(function () {
+    clear_error();
     draw_start();
     setTimeout(function nextDrawStep () {
       var speed = parseInt($('#speed').val(), 10);

@@ -76,44 +76,50 @@ statement
     = "if" ws "(" ws expr:expression ws ")" ws 
         "{" ws body:statements ws "}" ws
         "else" ws "{" ws elsebody:statements ws "}" ws
-        { matches['statement']++; return { tag:"if", expr:expr, body:body, else:elsebody }; }
+        { matches['statement']++; return { tag:"if", expr:expr, body:body, else:elsebody, loc: [line, column] }; }
     / "if" ws "(" ws expr:expression ws ")" ws 
         "{" ws body:statements ws "}" ws
-        { matches['statement']++; return { tag:"if", expr:expr, body:body }; }
+        { matches['statement']++; return { tag:"if", expr:expr, body:body, loc: [line, column] }; }
     / "define " ws v:identifier ws "(" ws ")" ws 
         "{" ws body:statements ws "}" ws
-        { matches['statement']++; return { tag:"define", name:v, args:[], body:body }; }
+        { matches['statement']++; return { tag:"define", name:v, args:[], body:body, loc: [line, column] }; }
     / "define " ws v:identifier ws "(" ws args:ident_list ws ")"
         ws "{" ws body:statements ws "}" ws
-        { matches['statement']++; return { tag:"define", name:v, args:args, body:body }; }
+        { matches['statement']++; return { tag:"define", name:v, args:args, body:body, loc: [line, column] }; }
+    / "repeat" ws "(" ws expr:expression ws "," ws v:identifier ws ")" ws
+        "{" ws body:statements ws "}" ws
+        { matches['statement']++; return { tag:"repeat", expr:expr, name:v, body:body, loc: [line, column] }; }
     / "repeat" ws "(" ws expr:expression ws ")" ws
         "{" ws body:statements ws "}" ws
-        { matches['statement']++; return { tag:"repeat", expr:expr, body:body }; }
+        { matches['statement']++; return { tag:"repeat", expr:expr, body:body, loc: [line, column] }; }
+    / "repeat" ws
+        "{" ws body:statements ws "}" ws
+        { matches['statement']++; return { tag:"repeat", body:body, loc: [line, column] }; }
     / "var " ws v:identifier ws ";" ws
-        { matches['statement']++; return { tag:"var", name:v }; }
+        { matches['statement']++; return { tag:"var", name:v, loc: [line, column] }; }
     / "throw" ws expr:expression? ws ";" ws
-        { matches['statement']++; return { tag:"throw", expr: expr || 'Exception!' }; }
+        { matches['statement']++; return { tag:"throw", expr: expr || 'Exception!', loc: [line, column] }; }
     / "break" ws ";" ws
-        { matches['statement']++; return { tag:"break" }; }
+        { matches['statement']++; return { tag:"break", loc: [line, column] }; }
     / "continue" ws ";" ws
-        { matches['statement']++; return { tag:"continue" }; }
+        { matches['statement']++; return { tag:"continue", loc: [line, column] }; }
     / "return" ws expr:expression ws ";" ws
-        { matches['statement']++; return { tag:"return", expr: expr }; }
+        { matches['statement']++; return { tag:"return", expr: expr, loc: [line, column] }; }
     / "try" ws
         "{" ws body:statements ws "}" ws
         "catch" ws "{" ws catchbody:statements ws "}" ws
-        { matches['statement']++; return { tag:"try", body:body, catch:catchbody }; }
+        { matches['statement']++; return { tag:"try", body:body, catch:catchbody, loc: [line, column] }; }
     / "try" ws
         "{" ws body:statements ws "}" ws
-        { matches['statement']++; return { tag:"try", body:body }; }
+        { matches['statement']++; return { tag:"try", body:body, loc: [line, column] }; }
     / "hatch" ws "{" ws body:statements ws "}" ws
-        { return {tag:"hatch", body:body}; }
+        { return {tag:"hatch", body:body, loc: [line, column] }; }
     / v:identifier ws ":=" ws expr:expression ws ";" ws
-        { matches['statement']++; return { tag:":=", left:v, right:expr }; }
+        { matches['statement']++; return { tag:":=", left:v, right:expr, loc: [line, column] }; }
     / v:identifier is:index+ ws ":=" ws expr:expression ws ";" ws
-        { matches['statement']++; return { tag:"[]=", left:v, index:is, right:expr }; }
+        { matches['statement']++; return { tag:"[]=", left:v, index:is, right:expr, loc: [line, column] }; }
     / expr:expression ws ";" ws
-        { matches['statement']++; return { tag:"ignore", body:expr }; }
+        { matches['statement']++; return { tag:"ignore", body:expr, loc: [line, column] }; }
 
 index
   = '[' ws index:expression ws ']' ws
@@ -132,7 +138,7 @@ logic_or
     = e:logic_and !(ws op:or_op ws)
         { matches['logic_or']++; return e }
     / left:logic_and ws op:or_op ws right:logic_or
-        { matches['logic_or']++; return {tag: op, left:left, right:right}; }
+        { matches['logic_or']++; return {tag: op, left:left, right:right, loc: [line, column] }; }
 
 and_op = "&&"
 
@@ -140,7 +146,7 @@ logic_and
     = e:comparative !(ws op:and_op ws)
         { matches['logic_and']++; return e }
     / left:comparative ws op:and_op ws right:logic_and
-        { matches['logic_and']++; return {tag: op, left:left, right:right}; }
+        { matches['logic_and']++; return {tag: op, left:left, right:right, loc: [line, column] }; }
 
 comp_op = "<=" / ">=" / "!=" / "==" / "<" / ">"
 
@@ -148,7 +154,7 @@ comparative
     = e:additive !(ws op:comp_op ws)
         { matches['comparative']++; return e }
     / left:additive ws op:comp_op ws right:comparative
-        { matches['comparative']++; return {tag: op, left:left, right:right}; }
+        { matches['comparative']++; return {tag: op, left:left, right:right, loc: [line, column] }; }
 
 additive_op = "+" / "-"
 
@@ -156,7 +162,7 @@ additive
     = e:multiplicative !(ws op:additive_op ws)
         { matches['additive']++; return e }
     / left:multiplicative ws op:additive_op ws right:additive
-        { matches['additive']++; return {tag:op, left:left, right:right}; }
+        { matches['additive']++; return {tag:op, left:left, right:right, loc: [line, column] }; }
 
 mult_op = "*" / "/"
 
@@ -164,20 +170,20 @@ multiplicative
     = e:primary !(ws op:mult_op ws)
         { matches['multiplicative']++; return e }
     / left:primary ws op:mult_op ws right:multiplicative
-        { matches['multiplicative']++; return {tag:op, left:left, right:right}; }
+        { matches['multiplicative']++; return {tag:op, left:left, right:right, loc: [line, column] }; }
 
 primary
     = number
     / string
     / array
     / v:identifier is:index+
-        { matches['primary']++; return {tag:"index", name:v, index:is}; }
+        { matches['primary']++; return {tag:"index", name:v, index:is, loc: [line, column] }; }
     / v:identifier "(" ws ")"
-        { matches['primary']++; return {tag:"call", name:v, args:[]}; }
+        { matches['primary']++; return {tag:"call", name:v, args:[], loc: [line, column] }; }
     / v:identifier "(" ws args:arglist ws ")"
-        { matches['primary']++; return {tag:"call", name:v, args:args}; }
+        { matches['primary']++; return {tag:"call", name:v, args:args, loc: [line, column] }; }
     / v:identifier
-        { matches['primary']++; return {tag:"ident", name:v}; }
+        { matches['primary']++; return {tag:"ident", name:v, loc: [line, column] }; }
     / "(" ws expression:expression ws ")"
         { matches['primary']++; return expression; }
 

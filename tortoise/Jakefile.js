@@ -11,7 +11,7 @@ task('build', [], function () {
     if (err) throw err;
     fs.writeFile(output_file,
                'var Tortoise = Tortoise || {};\nTortoise.parser = '
-               + PEG.buildParser(String(data), {}).toSource()
+               + PEG.buildParser(String(data), {trackLineAndColumn: true}).toSource()
                + ';\nif (typeof module !== "undefined") { module.exports = Tortoise.parser; }',
                function (err) {
       if (err) throw err;
