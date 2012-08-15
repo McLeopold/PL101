@@ -53,10 +53,38 @@ number
         { matches['number']++; return -parseFloat(chars.join('') + frac); }
 
 string
-    = '"' chars:[^"]* '"'
+    = "'" chars:s_char* "'"
       { matches['string']++; return chars.join(''); }
-    / "'" chars:[^']* "'"
+    / '"' chars:d_char* '"'
       { matches['string']++; return chars.join(''); }
+s_char
+    = !( "'" / '\\' / EOLChar ) char:SourceChar
+        { return char; }
+    / '\\' char:escape
+        { return JSON.parse('"\\' + char + '"'); }
+d_char
+    = !( '"' / '\\' / EOLChar ) char:SourceChar
+        { return char; }
+    / '\\' char:escape
+        { return JSON.parse('"\\' + char + '"'); }
+escape
+    = single_escape_char
+    / non_escape_char
+    / "0" !([0-9])
+    / hex_escape
+    / unicode_escape
+single_escape_char
+    = [\u0027\u0022\u005Cbfnrtv]
+non_escape_char
+    = !(single_escape_char / [0-9ux] / EOLChar) SourceChar
+hex_escape
+    = "x" d1:hex d2:hex
+        { return 'x' + d1 + d2; }
+unicode_escape
+    = "u" d1:hex d2:hex d3:hex d4:hex
+        { return 'u' + d1 + d2 + d3 + d4; }
+hex
+    = [0-9a-fA-F]
 
 array
     = '[' ws values:arglist ws ']'

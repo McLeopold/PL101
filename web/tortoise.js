@@ -116,8 +116,6 @@ $(function() {
       var result = Tortoise.interpreter.evalTortoise(parsed, env);
     } catch (e) {
       log_console('Error: ' + e.message + '\n  at line ' + e.loc[0] + ', column ' + e.loc[1]);
-      //var m = myCodeMirror.markText({line: e.loc[0]-1, ch: e.loc[1]+1}, {line: e.loc[0]-1, ch: e.loc[1]+5}, 'cm-error');
-      //myCodeMirror.setMarker(e.loc[0]-1, '\u21e8');
       error_highlight = myCodeMirror.setLineClass(e.loc[0]-1, null, 'error');
     }
     //log_console(Tortoise.interpreter.value(result));
