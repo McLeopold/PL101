@@ -1,0 +1,54 @@
+<h1>repeat</h1>
+<h2>Summary</h2>
+<p>Creates a loop that repeats infinitely or a set number of times with an optional variable.
+
+</p>
+<h2>Syntax</h2>
+<pre><code>repeat [(count[, name])] {
+  statements
+}</code></pre>
+<h2>Parameters</h2>
+<h3>count (optional)</h3>
+<p>A number of times to repeat the statments in the repeat body.
+
+</p>
+<h3>name (optional)</h3>
+<p>A variable name that is the value of the current iteration. Counting starts at 0 and ends at <code>count - 1</code>.
+
+</p>
+<h2>Examples</h2>
+<h3>Square Example</h3>
+<pre><code>repeat (4) {
+  forward(100);
+  right(90);
+}</code></pre>
+<h3>Variable Example</h3>
+<pre><code>repeat (10, i) {
+  logln(i);
+}</code></pre>
+<h3>While Loop</h3>
+<pre><code>repeat {
+  if (random() &lt; 0.1) {
+    break;
+  }
+  forward(10);
+  right(5);
+}</code></pre>
+<h3>Until Loop</h3>
+<pre><code>repeat {
+  forward(10);
+  right(5);
+  if (random() &lt; 0.1) {
+    break;
+  }
+}</code></pre>
+<h3>Loop and a Half</h3>
+<pre><code>repeat {
+  forward(10);
+  if (random() &lt; 0.1) {
+    break;
+  }
+  right(5);
+}</code></pre>
+<h2>Notes</h2>
+<p>Infinite Loops must have a break statement that will be executed otherwise the program will appear to hang.</p>
