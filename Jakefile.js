@@ -15,6 +15,8 @@ task('compile', [], function () {
     .run('jake -f tscheem/Jakefile.js -C tscheem')
     .run('jake -f tortoise/Jakefile.js -C tortoise')
     .run('jake -f elephant/Jakefile.js -C elephant')
+    .run('marked -o deploy/tortoise_repeat.html tortoise/doc/repeat.md')
+    .run('marked -o deploy/tortoise_text.html tortoise/doc/text.md')
   ;
 }, true);
 
