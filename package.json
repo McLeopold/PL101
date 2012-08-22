@@ -6,6 +6,7 @@
                    "chai"  : "latest",
                    "mocha" : "latest",
                    "async" : "latest",
-                   "tooljs": "latest"
+                   "tooljs": "latest",
+                   "marked": "latest"
   }
 }
