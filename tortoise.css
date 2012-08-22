@@ -59,3 +59,7 @@ svg {
 	border: solid 1px #f8f8f2;
 	background-color: #fff;
 }
+
+.codemirror pre.error {
+	background-color: #ff0;
+}

@@ -39,8 +39,10 @@ Tortoise.interpreter = (function () {
       floor: Math.floor,
       width: function (d) { this.setWidth(d); },
       color: function (r, g, b) { this.setColor(r, g, b); },
-      log: function (msg) { myConsole.text(myConsole.text() + msg); },
-      logln: function (msg) { myConsole.text(myConsole.text() + msg + '\n'); },
+      log: function (msg) { if (msg === undefined) msg = ''; myConsole.text(myConsole.text() + msg); },
+      logln: function (msg) { if (msg === undefined) msg = ''; myConsole.text(myConsole.text() + msg + '\n'); },
+      font: function (font) { this.setFont(font); },
+      text: function (text) { this.text(text); },
       'true': true,
       'false': false
 
@@ -114,13 +116,28 @@ Tortoise.interpreter = (function () {
     return env;
   };
 
-  var thunk = function (f) {
+  var thunk = function (fn) {
     var args = Array.prototype.slice.call(arguments, 1);
     return {
       tag: "thunk",
-      func: f,
+      func: fn,
       args: args
     };
+  };
+
+  // used to shortcut a thunk if the expr does not exist
+  // and returns the val on the next continuation
+  var default_thunk = function (val, fn, expr, env, conts) {
+    if (expr !== undefined) {
+      var args = Array.prototype.slice.call(arguments, 2);
+      return {
+        tag: "thunk",
+        func: fn,
+        args: args
+      };
+    } else {
+      return conts[0].call(this, val);
+    }
   };
 
   var thunkValue = function (x) {
@@ -165,7 +182,13 @@ Tortoise.interpreter = (function () {
           state.done = true;
           state.turtle && state.turtle.hide();
         } else if (state.data.tag === 'thunk') {
-          state.data = state.data.func.apply(state, state.data.args);
+          try {
+            state.data = state.data.func.apply(state, state.data.args);
+          } catch (e) {
+            e.loc = state.data.args[0].loc;
+            console.log(e);
+            throw e;
+          }
         } else {
           throw new Exception("What?");
         }
@@ -404,15 +427,26 @@ Tortoise.interpreter = (function () {
           }
         }].concat(conts.slice(1)));           
       case 'repeat':
-        return thunk.call(this, evalExpr, stmt.expr, env, [function (count) {
-          var i = -1;
-          return function repeatStmt (r) {
-            if (++i < count) {
-              return thunk.call(this, evalStatements, stmt.body, env, [repeatStmt, conts[EXCEPT], conts[NEXT], repeatStmt]);
-            } else {
-              return thunk.call(this, conts[NEXT], r);
-            }
-          }();
+        return default_thunk.call(this, 0, evalExpr, stmt.start, env, [function (start) {
+          return default_thunk.call(this, null, evalExpr, stmt.stop, env, [function (stop) {
+            return default_thunk.call(this, start <= stop ? 1 : -1, evalExpr, stmt.step, env, [function (step) {
+              var i = start - step;
+              if (stmt.name !== undefined) {
+                env = add_bindings({bindings: {}, outer: env}, stmt.name, 0);
+              }
+              return function repeatStmt (r) {
+                i += step;
+                if (stop === null || step > 0 && i < stop || step < 0 && i > stop) {
+                  if (stmt.name !== undefined) {
+                    update(env, stmt.name, i);
+                  }
+                  return thunk.call(this, evalStatements, stmt.body, env, [repeatStmt, conts[EXCEPT], conts[NEXT], repeatStmt]);
+                } else {
+                  return thunk.call(this, conts[NEXT], r);
+                }
+              }();
+            }].concat(conts.slice(1)));
+          }].concat(conts.slice(1)));
         }].concat(conts.slice(1)));
       case 'define':
         return thunk.call(this, conts[NEXT], add_binding(env, stmt.name, {
@@ -425,9 +459,9 @@ Tortoise.interpreter = (function () {
       case 'throw':
         return thunk.call(this, evalExpr, stmt.expr, env, [conts[EXCEPT]].concat(null, conts.slice(2)));
       case 'break':
-        return thunk.call(this, conts[BREAK]); // evalExpr, stmt.expr, env, [conts[BREAK]].concat(conts[1], null, conts.slice(3)));
+        return thunk.call(this, conts[BREAK]);
       case 'continue':
-        return thunk.call(this, conts[CONTINUE]); // evalExpr, stmt.expr, env, [conts[CONTINUE]].concat(conts[1], conts[2], null, conts.slice(4)));
+        return thunk.call(this, conts[CONTINUE]);
       case 'return':
         return thunk.call(this, conts[RETURN], stmt.expr);
       case 'try':
@@ -523,6 +557,7 @@ Tortoise.interpreter = (function () {
       "stroke": Raphael.rgb(0,0,0),
       "stroke-opacity": 1
     }
+    this.font = "20px Helvetica";
     this.turtleimg = undefined;
     this.updateTurtle();
   };
@@ -568,6 +603,10 @@ Tortoise.interpreter = (function () {
     this.stroke['stroke-width'] = width;
   }
 
+  Turtle.prototype.setFont = function (font) {
+    this.font = font;
+  }
+
   Turtle.prototype.forward = function (d) {
     var newx = this.x + Math.cos(Raphael.rad(this.angle)) * d;
     var newy = this.y - Math.sin(Raphael.rad(this.angle)) * d;
@@ -604,6 +643,9 @@ Tortoise.interpreter = (function () {
   Turtle.prototype.down = function () {
     this.pen = true;
   };
+  Turtle.prototype.text = function (text) {
+    this.paper.text(this.x, this.y, text).attr({font: this.font, fill: this.stroke.stroke });
+  }
 
   var obj = {
     evalFull: evalFull,

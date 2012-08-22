@@ -1,5 +1,9 @@
 /* Grammar for Tortoise, a turtle-graphics language */
 {
+
+    var line = null;
+    var column = null;
+
     var matches = {
         start: 0,
         number_frac: 0,
@@ -30,6 +34,13 @@
         ident_list: 0,
         ws: 0
     };
+
+    function loc(obj, loc) {
+      if (typeof loc[0] === 'number') {
+        obj.loc = loc;
+      }
+      return obj;
+    }
 }
 start
     = ws seq:statements
@@ -53,10 +64,38 @@ number
         { matches['number']++; return -parseFloat(chars.join('') + frac); }
 
 string
-    = '"' chars:[^"]* '"'
+    = "'" chars:s_char* "'"
       { matches['string']++; return chars.join(''); }
-    / "'" chars:[^']* "'"
+    / '"' chars:d_char* '"'
       { matches['string']++; return chars.join(''); }
+s_char
+    = !( "'" / '\\' / EOLChar ) char:SourceChar
+        { return char; }
+    / '\\' char:escape
+        { return JSON.parse('"\\' + char + '"'); }
+d_char
+    = !( '"' / '\\' / EOLChar ) char:SourceChar
+        { return char; }
+    / '\\' char:escape
+        { return JSON.parse('"\\' + char + '"'); }
+escape
+    = single_escape_char
+    / non_escape_char
+    / "0" !([0-9])
+    / hex_escape
+    / unicode_escape
+single_escape_char
+    = [\u0027\u0022\u005Cbfnrtv]
+non_escape_char
+    = !(single_escape_char / [0-9ux] / EOLChar) SourceChar
+hex_escape
+    = "x" d1:hex d2:hex
+        { return 'x' + d1 + d2; }
+unicode_escape
+    = "u" d1:hex d2:hex d3:hex d4:hex
+        { return 'u' + d1 + d2 + d3 + d4; }
+hex
+    = [0-9a-fA-F]
 
 array
     = '[' ws values:arglist ws ']'
@@ -76,44 +115,58 @@ statement
     = "if" ws "(" ws expr:expression ws ")" ws 
         "{" ws body:statements ws "}" ws
         "else" ws "{" ws elsebody:statements ws "}" ws
-        { matches['statement']++; return { tag:"if", expr:expr, body:body, else:elsebody }; }
+        { matches['statement']++; return loc({ tag:"if", expr:expr, body:body, else:elsebody }, [line, column]); }
     / "if" ws "(" ws expr:expression ws ")" ws 
         "{" ws body:statements ws "}" ws
-        { matches['statement']++; return { tag:"if", expr:expr, body:body }; }
+        { matches['statement']++; return loc({ tag:"if", expr:expr, body:body }, [line, column]); }
     / "define " ws v:identifier ws "(" ws ")" ws 
         "{" ws body:statements ws "}" ws
-        { matches['statement']++; return { tag:"define", name:v, args:[], body:body }; }
+        { matches['statement']++; return loc({ tag:"define", name:v, args:[], body:body }, [line, column]); }
     / "define " ws v:identifier ws "(" ws args:ident_list ws ")"
         ws "{" ws body:statements ws "}" ws
-        { matches['statement']++; return { tag:"define", name:v, args:args, body:body }; }
-    / "repeat" ws "(" ws expr:expression ws ")" ws
-        "{" ws body:statements ws "}" ws
-        { matches['statement']++; return { tag:"repeat", expr:expr, body:body }; }
+        { matches['statement']++; return loc({ tag:"define", name:v, args:args, body:body }, [line, column]); }
+    / "repeat"
+        start:(ws expression)?                        // optional count/start
+        stop:(ws "to" ws expression)?                 // optional stop
+        step:(ws "by" ws expression)?                 // optional step
+        name:(ws "as" ws identifier)?                // optional identifier
+        ws "{" ws body:statements ws "}"              // required body
+        elsebody:(ws "else" ws "{" ws statements ws "}")? // optional else
+        ws
+        {
+          var t = {tag:"repeat", body: body};
+          if (start !== '') { t.start = start[1]; }
+          if (stop !== '') { t.stop = stop[3]; } else { t.stop = t.start; delete t.start; }
+          if (step !== '') { t.step = step[3]; }
+          if (name !== '') { t.name = name[3]; }
+          if (elsebody !== '') { t.else = elsebody[5]; }
+          return loc(t, [line, column]);
+        }
     / "var " ws v:identifier ws ";" ws
-        { matches['statement']++; return { tag:"var", name:v }; }
+        { matches['statement']++; return loc({ tag:"var", name:v }, [line, column]); }
     / "throw" ws expr:expression? ws ";" ws
-        { matches['statement']++; return { tag:"throw", expr: expr || 'Exception!' }; }
+        { matches['statement']++; return loc({ tag:"throw", expr: expr || 'Exception!' }, [line, column]); }
     / "break" ws ";" ws
-        { matches['statement']++; return { tag:"break" }; }
+        { matches['statement']++; return loc({ tag:"break" }, [line, column]); }
     / "continue" ws ";" ws
-        { matches['statement']++; return { tag:"continue" }; }
+        { matches['statement']++; return loc({ tag:"continue" }, [line, column]); }
     / "return" ws expr:expression ws ";" ws
-        { matches['statement']++; return { tag:"return", expr: expr }; }
+        { matches['statement']++; return loc({ tag:"return", expr: expr }, [line, column]); }
     / "try" ws
         "{" ws body:statements ws "}" ws
         "catch" ws "{" ws catchbody:statements ws "}" ws
-        { matches['statement']++; return { tag:"try", body:body, catch:catchbody }; }
+        { matches['statement']++; return loc({ tag:"try", body:body, catch:catchbody }, [line, column]); }
     / "try" ws
         "{" ws body:statements ws "}" ws
-        { matches['statement']++; return { tag:"try", body:body }; }
+        { matches['statement']++; return loc({ tag:"try", body:body }, [line, column]); }
     / "hatch" ws "{" ws body:statements ws "}" ws
-        { return {tag:"hatch", body:body}; }
+        { matches['statement']++; return loc({tag:"hatch", body:body}, [line, column]); }
     / v:identifier ws ":=" ws expr:expression ws ";" ws
-        { matches['statement']++; return { tag:":=", left:v, right:expr }; }
+        { matches['statement']++; return loc({ tag:":=", left:v, right:expr }, [line, column]); }
     / v:identifier is:index+ ws ":=" ws expr:expression ws ";" ws
-        { matches['statement']++; return { tag:"[]=", left:v, index:is, right:expr }; }
+        { matches['statement']++; return loc({ tag:"[]=", left:v, index:is, right:expr }, [line, column]); }
     / expr:expression ws ";" ws
-        { matches['statement']++; return { tag:"ignore", body:expr }; }
+        { matches['statement']++; return loc({ tag:"ignore", body:expr }, [line, column]); }
 
 index
   = '[' ws index:expression ws ']' ws
@@ -132,7 +185,7 @@ logic_or
     = e:logic_and !(ws op:or_op ws)
         { matches['logic_or']++; return e }
     / left:logic_and ws op:or_op ws right:logic_or
-        { matches['logic_or']++; return {tag: op, left:left, right:right}; }
+        { matches['logic_or']++; return loc({tag: op, left:left, right:right }, [line, column]); }
 
 and_op = "&&"
 
@@ -140,7 +193,7 @@ logic_and
     = e:comparative !(ws op:and_op ws)
         { matches['logic_and']++; return e }
     / left:comparative ws op:and_op ws right:logic_and
-        { matches['logic_and']++; return {tag: op, left:left, right:right}; }
+        { matches['logic_and']++; return loc({tag: op, left:left, right:right }, [line, column]); }
 
 comp_op = "<=" / ">=" / "!=" / "==" / "<" / ">"
 
@@ -148,7 +201,7 @@ comparative
     = e:additive !(ws op:comp_op ws)
         { matches['comparative']++; return e }
     / left:additive ws op:comp_op ws right:comparative
-        { matches['comparative']++; return {tag: op, left:left, right:right}; }
+        { matches['comparative']++; return loc({tag: op, left:left, right:right }, [line, column]); }
 
 additive_op = "+" / "-"
 
@@ -156,7 +209,7 @@ additive
     = e:multiplicative !(ws op:additive_op ws)
         { matches['additive']++; return e }
     / left:multiplicative ws op:additive_op ws right:additive
-        { matches['additive']++; return {tag:op, left:left, right:right}; }
+        { matches['additive']++; return loc({tag:op, left:left, right:right }, [line, column]); }
 
 mult_op = "*" / "/"
 
@@ -164,20 +217,20 @@ multiplicative
     = e:primary !(ws op:mult_op ws)
         { matches['multiplicative']++; return e }
     / left:primary ws op:mult_op ws right:multiplicative
-        { matches['multiplicative']++; return {tag:op, left:left, right:right}; }
+        { matches['multiplicative']++; return loc({tag:op, left:left, right:right }, [line, column]); }
 
 primary
     = number
     / string
     / array
     / v:identifier is:index+
-        { matches['primary']++; return {tag:"index", name:v, index:is}; }
+        { matches['primary']++; return loc({tag:"index", name:v, index:is }, [line, column]); }
     / v:identifier "(" ws ")"
-        { matches['primary']++; return {tag:"call", name:v, args:[]}; }
+        { matches['primary']++; return loc({tag:"call", name:v, args:[] }, [line, column]); }
     / v:identifier "(" ws args:arglist ws ")"
-        { matches['primary']++; return {tag:"call", name:v, args:args}; }
+        { matches['primary']++; return loc({tag:"call", name:v, args:args }, [line, column]); }
     / v:identifier
-        { matches['primary']++; return {tag:"ident", name:v}; }
+        { matches['primary']++; return loc({tag:"ident", name:v }, [line, column]); }
     / "(" ws expression:expression ws ")"
         { matches['primary']++; return expression; }
 

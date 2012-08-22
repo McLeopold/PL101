@@ -1,6 +1,11 @@
 var Tortoise = Tortoise || {};
 Tortoise.samples = (function () {
   var samples = {
+    'text' : [[
+      'font("50px Comic Sans MS");',
+      'color(255, 0, 0);',
+      'text("Never use\\nComic Sans");'
+    ], undefined],
     'simple': [[
       'hatch{repeat(4){forward(25);}}repeat(4){backward(25);}'
     ], undefined],
