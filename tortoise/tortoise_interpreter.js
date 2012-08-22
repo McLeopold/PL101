@@ -116,13 +116,28 @@ Tortoise.interpreter = (function () {
     return env;
   };
 
-  var thunk = function (f) {
+  var thunk = function (fn) {
     var args = Array.prototype.slice.call(arguments, 1);
     return {
       tag: "thunk",
-      func: f,
+      func: fn,
       args: args
     };
+  };
+
+  // used to shortcut a thunk if the expr does not exist
+  // and returns the val on the next continuation
+  var default_thunk = function (val, fn, expr, env, conts) {
+    if (expr !== undefined) {
+      var args = Array.prototype.slice.call(arguments, 2);
+      return {
+        tag: "thunk",
+        func: fn,
+        args: args
+      };
+    } else {
+      return conts[0].call(this, val);
+    }
   };
 
   var thunkValue = function (x) {
@@ -412,35 +427,27 @@ Tortoise.interpreter = (function () {
           }
         }].concat(conts.slice(1)));           
       case 'repeat':
-        if (stmt.name) {
-          return thunk.call(this, evalExpr, stmt.expr, env, [function (count) {
-            var i = -1;
-            env = add_bindings({bindings: {}, outer: env}, stmt.name, 0);
-            return function repeatStmt (r) {
-              if (++i < count) {
-                update(env, stmt.name, i);
-                return thunk.call(this, evalStatements, stmt.body, env, [repeatStmt, conts[EXCEPT], conts[NEXT], repeatStmt]);
-              } else {
-                return thunk.call(this, conts[NEXT], r);
+        return default_thunk.call(this, 0, evalExpr, stmt.start, env, [function (start) {
+          return default_thunk.call(this, null, evalExpr, stmt.stop, env, [function (stop) {
+            return default_thunk.call(this, start <= stop ? 1 : -1, evalExpr, stmt.step, env, [function (step) {
+              var i = start - step;
+              if (stmt.name !== undefined) {
+                env = add_bindings({bindings: {}, outer: env}, stmt.name, 0);
               }
-            }();
+              return function repeatStmt (r) {
+                i += step;
+                if (stop === null || step > 0 && i < stop || step < 0 && i > stop) {
+                  if (stmt.name !== undefined) {
+                    update(env, stmt.name, i);
+                  }
+                  return thunk.call(this, evalStatements, stmt.body, env, [repeatStmt, conts[EXCEPT], conts[NEXT], repeatStmt]);
+                } else {
+                  return thunk.call(this, conts[NEXT], r);
+                }
+              }();
+            }].concat(conts.slice(1)));
           }].concat(conts.slice(1)));
-        } else if (stmt.expr) {
-          return thunk.call(this, evalExpr, stmt.expr, env, [function (count) {
-            var i = -1;
-            return function repeatStmt (r) {
-              if (++i < count) {
-                return thunk.call(this, evalStatements, stmt.body, env, [repeatStmt, conts[EXCEPT], conts[NEXT], repeatStmt]);
-              } else {
-                return thunk.call(this, conts[NEXT], r);
-              }
-            }();
-          }].concat(conts.slice(1)));
-        } else {
-          return function repeatStmt (r) {
-            return thunk.call(this, evalStatements, stmt.body, env, [repeatStmt, conts[EXCEPT], conts[NEXT], repeatStmt]);
-          }();
-        }
+        }].concat(conts.slice(1)));
       case 'define':
         return thunk.call(this, conts[NEXT], add_binding(env, stmt.name, {
           body: stmt.body,
