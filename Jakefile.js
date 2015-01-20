@@ -35,10 +35,10 @@ task('deploy', ['clean', 'compile'], function () {
     .cp('web/*', 'deploy/', {recursive: true})
     .cp('node_modules/mocha/mocha.*', 'deploy/')
     .cp('node_modules/chai/chai.js', 'deploy/')
-    .cp('CodeMirror2/lib/codemirror.*', 'deploy/')
-    .cp('CodeMirror2/theme/*.css', 'deploy/')
-    .cp('CodeMirror2/mode/scheme/scheme.js', 'deploy/')
-    .cp('CodeMirror2/mode/javascript/javascript.js', 'deploy/')
+    .cp('CodeMirror/lib/codemirror.*', 'deploy/')
+    .cp('CodeMirror/theme/*.css', 'deploy/')
+    .cp('CodeMirror/mode/scheme/scheme.js', 'deploy/')
+    .cp('CodeMirror/mode/javascript/javascript.js', 'deploy/')
     .cp('raphael/raphael.js', 'deploy/')
   ;
 }, true);
