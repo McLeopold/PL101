@@ -19,9 +19,16 @@ body {
 #editor {
 	position: absolute;
 	top: 54px;
-	right: 0px;
+	right: 260px;
 	left: 420px;
 	bottom: 0px;
+}
+#doc {
+	position: absolute;
+	top: 54px;
+	bottom: 0px;
+	right: 0px;
+	width: 250px;
 }
 #console {
 	background: #d0e0c0;
